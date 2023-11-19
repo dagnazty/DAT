@@ -1,4 +1,4 @@
-# dags-audit-tool
+# DAT
 dag's Audit Tool is a PowerShell script designed for in-depth auditing of various system components in a Windows environment. Key features include:
 
     - Operating System Information: Captures details like OS version, architecture, and installation date.
