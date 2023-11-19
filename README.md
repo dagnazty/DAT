@@ -15,7 +15,7 @@ dag's Audit Tool is a PowerShell script designed for in-depth auditing of variou
     - Security and Update Status: Status of Windows Defender, installed updates, and firewall.
     - Backup Status: Information about system backup status and history.
     - Open Network Ports: Details of currently open network ports.
-    - User Privileges: Lists users and their group memberships.
+    - User Groups: Lists users and their group memberships.
     - Scan for Suspicious Registry Entries: Checks for specific suspicious entries in the Windows registry.
     - HDD/SSD Health: Basic health check of HDD/SSD using available system data.
 
