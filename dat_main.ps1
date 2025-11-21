@@ -1,3 +1,4 @@
+. ".\Functions\Export-ToCSV.ps1"
 . ".\Functions\Get-PerformanceMetrics.ps1"
 . ".\Functions\Get-SystemUptime.ps1"
 . ".\Functions\Get-RunningProcesses.ps1"
@@ -40,17 +41,20 @@ function Show-Menu {
     Write-Host "15: Running Processes"
     Write-Host "16: Windows Update History"
     Write-Host "17: Drivers Information"
-    Write-Host "18: Backup Status" 
+    Write-Host "18: Backup Status"
     Write-Host "19: Open Network Ports"
     Write-Host "20: User Groups"
-    Write-Host "21: Scan for Suspicious Registry Entries"  
-    Write-Host "22: HDD/SSD Health" 
+    Write-Host "21: Scan for Suspicious Registry Entries"
+    Write-Host "22: HDD/SSD Health"
     Write-Host "23: Full System Audit"
+    Write-Host "24: Run All Functions (CSV Export)"
     Write-Host "Q: Quit"
 }
 
 function Run-InteractiveAudit {
     $LogFilePath = "$env:USERPROFILE\Documents\SystemAuditLog.txt"
+    $CsvExportMode = $false
+    $CsvBasePath = "$env:USERPROFILE\Documents\SystemAudit_$(Get-Date -Format 'yyyyMMdd_HHmmss')"
 
     do {
         Show-Menu
@@ -152,6 +156,33 @@ function Run-InteractiveAudit {
                 Write-Host "Gathering Disk Health..."
                 $diskHealth = Get-DiskHealth
                 LogAndDisplay $diskHealth
+            }
+            '24' {
+                Write-Host "Running All Functions with CSV Export..."
+                Write-Host "CSV files will be saved to: $CsvBasePath"
+
+                # Create directory for CSV exports
+                if (-not (Test-Path -Path $CsvBasePath)) {
+                    New-Item -ItemType Directory -Path $CsvBasePath -Force | Out-Null
+                }
+
+                # Run all functions with CSV export
+                Get-SystemUptime -CsvPath (Join-Path -Path $CsvBasePath -ChildPath "SystemUptime.csv")
+                Get-RunningProcesses -CsvPath (Join-Path -Path $CsvBasePath -ChildPath "RunningProcesses.csv")
+                Get-PerformanceMetrics -CsvPath (Join-Path -Path $CsvBasePath -ChildPath "PerformanceMetrics.csv")
+                Get-HardwareInventory -CsvPath (Join-Path -Path $CsvBasePath -ChildPath "HardwareInventory.csv")
+                Get-EventLogSummary -CsvPath (Join-Path -Path $CsvBasePath -ChildPath "EventLogs.csv")
+                Get-SecurityUpdateStatus -CsvPath (Join-Path -Path $CsvBasePath -ChildPath "SecurityStatus.csv")
+                Get-SoftwareLicensing -CsvPath (Join-Path -Path $CsvBasePath -ChildPath "SoftwareLicensing.csv")
+                Get-WindowsUpdateHistory -CsvPath (Join-Path -Path $CsvBasePath -ChildPath "WindowsUpdateHistory.csv")
+                Get-DriversInformation -CsvPath (Join-Path -Path $CsvBasePath -ChildPath "DriversInformation.csv")
+                Get-BackupStatus -CsvPath (Join-Path -Path $CsvBasePath -ChildPath "BackupStatus.csv")
+                Get-OpenPorts -CsvPath (Join-Path -Path $CsvBasePath -ChildPath "OpenPorts.csv")
+                Get-UserGroupMemberships -CsvPath (Join-Path -Path $CsvBasePath -ChildPath "UserGroups.csv")
+                Scan-SuspiciousRegistryEntries -CsvPath (Join-Path -Path $CsvBasePath -ChildPath "RegistryScan.csv")
+                Get-DiskHealth -CsvPath (Join-Path -Path $CsvBasePath -ChildPath "DiskHealth.csv")
+
+                Write-Host "`nAll functions completed. CSV files saved to: $CsvBasePath"
             }                                          
             '23' {
                 Write-Host "Performing Full System Audit..."

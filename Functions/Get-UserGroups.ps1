@@ -1,4 +1,8 @@
 function Get-UserGroupMemberships {
+    param (
+        [string]$CsvPath = ""
+    )
+
     $users = Get-LocalUser
     $userGroups = foreach ($user in $users) {
         $userName = $user.Name
@@ -12,10 +16,23 @@ function Get-UserGroupMemberships {
         [PSCustomObject]@{
             UserName = $userName
             GroupMemberships = $groupsList
+            Enabled = $user.Enabled
+            Description = $user.Description
         }
+    }
+
+    if ($CsvPath) {
+        $userGroups | Export-Csv -Path $CsvPath -NoTypeInformation
+        Write-Host "User groups exported to: $CsvPath"
     }
 
     return $userGroups
 }
 
-Get-UserGroupMemberships | Format-Table -AutoSize
+# Standalone execution
+if ($MyInvocation.InvocationName -eq $MyInvocation.MyCommand.Name) {
+    param (
+        [string]$CsvPath = ""
+    )
+    Get-UserGroupMemberships -CsvPath $CsvPath
+}

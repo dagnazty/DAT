@@ -1,4 +1,9 @@
 function Get-SystemInformation {
+    param (
+        [string]$CsvPath = "",
+        [switch]$NoSubCalls
+    )
+
     Write-Host "Gathering Operating System Information..."
     $osInfo = Get-CimInstance Win32_OperatingSystem | Select-Object Caption, Version, BuildNumber, OSArchitecture, InstallDate
 
@@ -6,13 +11,18 @@ function Get-SystemInformation {
     $cpuInfo = Get-CimInstance Win32_Processor | Select-Object Name, NumberOfCores, MaxClockSpeed
 
     Write-Host "Gathering Memory Information..."
-    $memoryInfo = Get-CimInstance Win32_PhysicalMemory | Measure-Object -Property Capacity -Sum
+    $memoryInfo = Get-CimInstance Win32_PhysicalMemory | Measure-Object -Property Capacity -Sum |
+        Select-Object @{Name="TotalMemoryGB"; Expression={[math]::Round($_.Sum / 1GB, 2)}}, Count
 
     Write-Host "Gathering Disk Information..."
-    $diskInfo = Get-CimInstance Win32_LogicalDisk | Where-Object {$_.DriveType -eq 3} | Select-Object DeviceID, VolumeName, @{Name="Size(GB)"; Expression={$_.Size / 1GB -as [int]}}, @{Name="FreeSpace(GB)"; Expression={$_.FreeSpace / 1GB -as [int]}}
+    $diskInfo = Get-CimInstance Win32_LogicalDisk | Where-Object {$_.DriveType -eq 3} |
+        Select-Object DeviceID, VolumeName,
+            @{Name="SizeGB"; Expression={[math]::Round($_.Size / 1GB, 2)}},
+            @{Name="FreeSpaceGB"; Expression={[math]::Round($_.FreeSpace / 1GB, 2)}}
 
     Write-Host "Gathering Network Information..."
-    $networkInfo = Get-CimInstance Win32_NetworkAdapterConfiguration | Where-Object {$_.IPAddress -ne $null} | Select-Object Description, IPAddress, IPSubnet, DefaultIPGateway
+    $networkInfo = Get-CimInstance Win32_NetworkAdapterConfiguration | Where-Object {$_.IPAddress -ne $null} |
+        Select-Object Description, IPAddress, IPSubnet, DefaultIPGateway
 
     Write-Host "Gathering User Account Information..."
     $userAccounts = Get-CimInstance Win32_UserAccount | Select-Object Name, Domain, Disabled, PasswordRequired, PasswordChangeable
@@ -23,32 +33,44 @@ function Get-SystemInformation {
     Write-Host "Gathering Installed Software Information..."
     $installedSoftware = Get-CimInstance Win32_Product | Select-Object Name, Version, InstallDate
 
-    Write-Host "Gathering Security and Update Status..."
-    $securityUpdateStatus = Get-SecurityUpdateStatus
+    if (-not $NoSubCalls) {
+        Write-Host "Gathering Security and Update Status..."
+        $securityUpdateStatus = Get-SecurityUpdateStatus
 
-    Write-Host "Gathering Event Log Summary..."
-    $eventLogSummary = Get-EventLogSummary
+        Write-Host "Gathering Event Log Summary..."
+        $eventLogSummary = Get-EventLogSummary
 
-    $hardwareInventory = Get-HardwareInventory
+        $hardwareInventory = Get-HardwareInventory
 
-    $softwareLicensing = Get-SoftwareLicensing
+        $softwareLicensing = Get-SoftwareLicensing
 
-    Write-Host "Gathering Performance Metrics..."
-    $performanceMetrics = Get-PerformanceMetrics
+        Write-Host "Gathering Performance Metrics..."
+        $performanceMetrics = Get-PerformanceMetrics
 
-    Write-Host "Gathering System Uptime..."
-    $systemUptime = Get-SystemUptime
+        Write-Host "Gathering System Uptime..."
+        $systemUptime = Get-SystemUptime
 
-    Write-Host "Gathering Running Processes..."
-    $runningProcesses = Get-RunningProcesses
+        Write-Host "Gathering Running Processes..."
+        $runningProcesses = Get-RunningProcesses
 
-    Write-Host "Gathering Windows Update History..."
-    $windowsUpdateHistory = Get-WindowsUpdateHistory
+        Write-Host "Gathering Windows Update History..."
+        $windowsUpdateHistory = Get-WindowsUpdateHistory
 
-    Write-Host "Gathering Drivers Information..."
-    $driversInformation = Get-DriversInformation
-    
-    return [PSCustomObject]@{
+        Write-Host "Gathering Drivers Information..."
+        $driversInformation = Get-DriversInformation
+    } else {
+        $securityUpdateStatus = $null
+        $eventLogSummary = $null
+        $hardwareInventory = $null
+        $softwareLicensing = $null
+        $performanceMetrics = $null
+        $systemUptime = $null
+        $runningProcesses = $null
+        $windowsUpdateHistory = $null
+        $driversInformation = $null
+    }
+
+    $result = [PSCustomObject]@{
         OSInfo = $osInfo
         CPUInfo = $cpuInfo
         MemoryInfo = $memoryInfo
@@ -67,4 +89,45 @@ function Get-SystemInformation {
         WindowsUpdateHistory = $windowsUpdateHistory
         DriversInformation = $driversInformation
     }
+
+    if ($CsvPath) {
+        # Create directory if it doesn't exist
+        $directory = Split-Path -Path $CsvPath -Parent
+        if ([string]::IsNullOrEmpty($directory)) {
+            $directory = "."
+        }
+        if (-not (Test-Path -Path $directory)) {
+            New-Item -ItemType Directory -Path $directory -Force | Out-Null
+        }
+
+        # Export each section to separate CSV files
+        $result.PSObject.Properties | ForEach-Object {
+            $sectionName = $_.Name
+            $sectionData = $_.Value
+
+            if ($null -ne $sectionData) {
+                $sectionFileName = "SystemInformation_$sectionName.csv"
+                $sectionFilePath = Join-Path -Path $directory -ChildPath $sectionFileName
+
+                if ($sectionData -is [System.Collections.IEnumerable] -and $sectionData -isnot [string]) {
+                    $sectionData | Export-Csv -Path $sectionFilePath -NoTypeInformation
+                } else {
+                    # Handle single objects
+                    $sectionData | Export-Csv -Path $sectionFilePath -NoTypeInformation
+                }
+                Write-Host "Exported $sectionName to: $sectionFilePath"
+            }
+        }
+    }
+
+    return $result
+}
+
+# Standalone execution
+if ($MyInvocation.InvocationName -eq $MyInvocation.MyCommand.Name) {
+    param (
+        [string]$CsvPath = "",
+        [switch]$NoSubCalls
+    )
+    Get-SystemInformation -CsvPath $CsvPath -NoSubCalls:$NoSubCalls
 }
