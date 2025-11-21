@@ -16,6 +16,7 @@
 . ".\Functions\Get-UserGroups.ps1"
 . ".\Functions\Scan-SuspiciousRegistryEntries.ps1"
 . ".\Functions\Get-DiskHealth.ps1"
+. ".\Functions\Get-Configuration.ps1"
 
 function Show-Menu {
     param (

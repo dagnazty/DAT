@@ -699,6 +699,54 @@ $runAuditBtn.Add_Click({
     $script:auditResults = $auditResults
     $script:allData = $allData
 
+    # Send Webhook Alert if enabled
+    if ($script:config -and $script:config.alerting.enabled -and $script:config.alerting.webhook.url) {
+        try {
+            # Ensure Send-Alert is loaded
+            if (-not (Get-Command -Name Send-Alert -ErrorAction SilentlyContinue)) {
+                $alertPath = Join-Path -Path $script:ScriptRoot -ChildPath "Functions\Send-Alert.ps1"
+                if (Test-Path $alertPath) {
+                    . $alertPath
+                }
+            }
+
+            $alertMessage = "Audit Run Completed on $env:COMPUTERNAME`n`n"
+            $alertMessage += "Total Functions: $($selectedFunctions.Count)`n"
+            $attachments = @()
+            
+            foreach ($func in $selectedFunctions) {
+                $res = $auditResults[$func]
+                $status = $res.Status
+                $alertMessage += "- $func`: $status`n"
+                
+                if ($func -eq "PerformanceMetrics" -and $status -eq "Success") {
+                    $metrics = $res.Data
+                    $alertMessage += "   - CPU: $($metrics.CPUUsagePercent)%`n"
+                    $alertMessage += "   - Memory: $($metrics.MemoryUsagePercent)%`n"
+                }
+
+                if ($func -eq "RunningProcesses" -and $status -eq "Success") {
+                    $processes = $res.Data
+                    if ($processes) {
+                        $procFilePath = "$env:TEMP\DAT_RunningProcesses_$($env:COMPUTERNAME)_$(Get-Date -Format 'yyyyMMdd-HHmmss').txt"
+                        $processes | Format-Table -AutoSize | Out-String | Set-Content -Path $procFilePath
+                        $attachments += $procFilePath
+                        $alertMessage += "   - Running Processes list attached as file.`n"
+                    }
+                }
+            }
+
+            Send-Alert -Subject "DAT Audit Summary" -Message $alertMessage -Channels "Webhook" -Severity "Info" -Config $script:config -Attachments $attachments
+            
+            # Cleanup attachments
+            foreach ($file in $attachments) {
+                if (Test-Path $file) { Remove-Item $file -ErrorAction SilentlyContinue }
+            }
+        } catch {
+            $statusLabel.Text = "Audit completed. Alert failed: $($_.Exception.Message)"
+        }
+    }
+
     $exportCsvBtn.Enabled = $true
     $exportHtmlBtn.Enabled = $true
     $runAuditBtn.Enabled = $true
@@ -738,7 +786,7 @@ $exportCsvBtn.Add_Click({
 
             $message = "Results exported successfully!`n`nExported $($exportedFiles.Count) files:`n"
             foreach ($file in $exportedFiles) {
-                $message += "`n• $(Split-Path -Path $file -Leaf)"
+                $message += "`n- $(Split-Path -Path $file -Leaf)"
             }
             [System.Windows.Forms.MessageBox]::Show($message, "Export Complete", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
         } catch {
@@ -956,7 +1004,7 @@ $viewSchedulesBtn.Add_Click({
         if ($tasks) {
             $message = "Scheduled DAT Tasks:`n`n"
             foreach ($task in $tasks) {
-                $message += "• $($task.TaskName) - $($task.State) - Next: $($task.NextRunTime)`n"
+                $message += "- $($task.TaskName) - $($task.State) - Next: $($task.NextRunTime)`n"
             }
             [System.Windows.Forms.MessageBox]::Show($message, "Scheduled Tasks", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
         } else {

@@ -1,84 +1,14 @@
-{
-  "audit": {
-    "enabledChecks": [
-      "SystemUptime",
-      "RunningProcesses",
-      "PerformanceMetrics",
-      "HardwareInventory",
-      "EventLogSummary",
-      "SecurityUpdateStatus",
-      "SoftwareLicensing",
-      "WindowsUpdateHistory",
-      "DriversInformation",
-      "BackupStatus",
-      "OpenPorts",
-      "UserGroups",
-      "RegistryScan",
-      "DiskHealth"
-    ],
-    "schedule": {
-      "enabled": false,
-      "frequency": "daily",
-      "time": "09:00",
-      "daysOfWeek": ["Monday", "Wednesday", "Friday"]
-    }
-  },
-  "thresholds": {
-    "cpuUsageWarning": 70,
-    "cpuUsageCritical": 90,
-    "memoryUsageWarning": 80,
-    "memoryUsageCritical": 95,
-    "diskUsageWarning": 85,
-    "diskUsageCritical": 95,
-    "eventLogErrorsMax": 10,
-    "maxOpenPorts": 50,
-    "maxRunningProcesses": 200
-  },
-  "alerting": {
-    "enabled": false,
-    "email": {
-      "smtpServer": "smtp.company.com",
-      "port": 587,
-      "from": "audit@company.com",
-      "to": ["admin@company.com"],
-      "useSSL": true,
-      "credentialPath": "Config\\email_credential.xml"
-    },
-    "webhook": {
-      "url": "https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN",
-      "method": "POST",
-      "comment": "Supports Discord, Slack, Teams - auto-detected by URL"
-    },
-    "alertOn": ["critical", "warning"]
-  },
-  "reporting": {
-    "outputFormats": ["CSV", "HTML", "JSON"],
-    "htmlReport": {
-      "includeCharts": true,
-      "companyName": "Your Organization",
-      "logoPath": ""
-    },
-    "retention": {
-      "days": 90,
-      "maxReports": 50
-    }
-  },
-  "compliance": {
-    "enabled": false,
-    "standards": ["CIS", "NIST"],
-    "cisLevel": 1,
-    "autoRemediation": false
-  },
-  "security": {
-    "scanRegistry": true,
-    "checkFilePermissions": true,
-    "vulnerabilityScan": false,
-    "networkScan": false
-  },
-  "logging": {
-    "level": "Information",
-    "filePath": "Logs\\audit.log",
-    "maxFileSize": "10MB",
-    "retentionDays": 30
-  }
+﻿{
+    "alerting":  {
+                     "webhook":  {
+                                     "url":  ""
+                                 },
+                     "email":  {
+                                   "smtpServer":  "smtp.company.com",
+                                   "to":  [
+                                              "admin@company.com"
+                                          ]
+                               },
+                     "enabled":  true
+                 }
 }
