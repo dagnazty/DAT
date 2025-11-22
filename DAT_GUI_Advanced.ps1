@@ -350,7 +350,7 @@ $alertingGroup.Controls.Add($emailToText)
 $webhookLabel = New-Object System.Windows.Forms.Label
 $webhookLabel.Text = "Webhook URL (Discord/Slack/Teams):"
 $webhookLabel.Location = New-Object System.Drawing.Point(40, 145)
-$webhookLabel.Size = New-Object System.Drawing.Size(220, 20)
+$webhookLabel.Size = New-Object System.Drawing.Size(320, 20)
 $alertingGroup.Controls.Add($webhookLabel)
 
 $webhookText = New-Object System.Windows.Forms.TextBox
@@ -802,6 +802,7 @@ $exportCsvBtn.Add_Click({
 })
 
 # Export HTML Button
+# Export HTML Button
 $exportHtmlBtn.Add_Click({
     if (-not $script:auditResults) {
         [System.Windows.Forms.MessageBox]::Show("No data to export. Please run an audit first.", "No Data", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
@@ -815,11 +816,19 @@ $exportHtmlBtn.Add_Click({
 
     if ($saveDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
         try {
+            # Try to load the function if not already loaded
             if (-not (Get-Command -Name New-HTMLReport -ErrorAction SilentlyContinue)) {
                 $htmlPath = Join-Path -Path $script:ScriptRoot -ChildPath "Functions\New-HTMLReport.ps1"
                 if (Test-Path $htmlPath) {
                     . $htmlPath
+                } else {
+                    throw "New-HTMLReport.ps1 not found at $htmlPath"
                 }
+            }
+
+            # Verify it loaded correctly
+            if (-not (Get-Command -Name New-HTMLReport -ErrorAction SilentlyContinue)) {
+                throw "Failed to load New-HTMLReport function."
             }
 
             $htmlData = @{}
@@ -827,10 +836,13 @@ $exportHtmlBtn.Add_Click({
                 $htmlData[$key] = $script:auditResults[$key].Data
             }
 
-            if (Get-Command -Name New-HTMLReport -ErrorAction SilentlyContinue) {
-                New-HTMLReport -OutputPath $saveDialog.FileName -AuditData $htmlData -CompanyName "DAT Advanced Tool"
+            New-HTMLReport -OutputPath $saveDialog.FileName -AuditData $htmlData -CompanyName "DAT Advanced Tool"
+            
+            if (Test-Path $saveDialog.FileName) {
+                [System.Windows.Forms.MessageBox]::Show("HTML report generated successfully:`n$($saveDialog.FileName)", "Report Complete", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+            } else {
+                throw "File was not created at $($saveDialog.FileName)"
             }
-            [System.Windows.Forms.MessageBox]::Show("HTML report generated successfully:`n$($saveDialog.FileName)", "Report Complete", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
         } catch {
             [System.Windows.Forms.MessageBox]::Show("Failed to generate HTML report: $($_.Exception.Message)", "Report Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
         }
