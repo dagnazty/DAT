@@ -1066,20 +1066,159 @@ $viewSchedulesBtn.Add_Click({
                 . "$PSScriptRoot\Functions\New-ScheduledAudit.ps1"
             }
 
-            $tasks = Get-ScheduledAudits
-            if ($tasks) {
-                $message = "Scheduled DAT Tasks:`n`n"
-                foreach ($task in $tasks) {
-                    $message += "- $($task.TaskName) - $($task.State) - Next: $($task.NextRunTime)`n"
+            # Create Task Manager Dialog
+            $taskDialog = New-Object System.Windows.Forms.Form
+            $taskDialog.Text = "Scheduled DAT Tasks Manager"
+            $taskDialog.Size = New-Object System.Drawing.Size(700, 500)
+            $taskDialog.StartPosition = "CenterScreen"
+            $taskDialog.FormBorderStyle = "FixedDialog"
+            $taskDialog.MaximizeBox = $false
+            
+            # Title
+            $dialogTitle = New-Object System.Windows.Forms.Label
+            $dialogTitle.Text = "Manage Scheduled Audit Tasks"
+            $dialogTitle.Font = New-Object System.Drawing.Font("Segoe UI", 12, [System.Drawing.FontStyle]::Bold)
+            $dialogTitle.ForeColor = [System.Drawing.Color]::FromArgb(0, 123, 191)
+            $dialogTitle.Location = New-Object System.Drawing.Point(20, 15)
+            $dialogTitle.Size = New-Object System.Drawing.Size(400, 25)
+            $taskDialog.Controls.Add($dialogTitle)
+            
+            # ListBox for tasks
+            $taskListBox = New-Object System.Windows.Forms.ListBox
+            $taskListBox.Location = New-Object System.Drawing.Point(20, 50)
+            $taskListBox.Size = New-Object System.Drawing.Size(640, 300)
+            $taskListBox.Font = New-Object System.Drawing.Font("Consolas", 10)
+            $taskDialog.Controls.Add($taskListBox)
+            
+            # Function to load tasks
+            $loadTasks = {
+                $taskListBox.Items.Clear()
+                $script:currentTasks = Get-ScheduledAudits
+                
+                if ($script:currentTasks) {
+                    foreach ($task in $script:currentTasks) {
+                        $displayText = "$($task.TaskName.PadRight(30)) | State: $($task.State.ToString().PadRight(10)) | Next: $($task.NextRunTime)"
+                        $taskListBox.Items.Add($displayText)
+                    }
                 }
-                [System.Windows.Forms.MessageBox]::Show($message, "Scheduled Tasks", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+                else {
+                    $taskListBox.Items.Add("No scheduled DAT tasks found.")
+                }
             }
-            else {
-                [System.Windows.Forms.MessageBox]::Show("No scheduled DAT tasks found.", "No Tasks", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
-            }
+            
+            # Initial load
+            & $loadTasks
+            
+            # Refresh Button
+            $refreshBtn = New-Object System.Windows.Forms.Button
+            $refreshBtn.Text = "Refresh"
+            $refreshBtn.Location = New-Object System.Drawing.Point(20, 370)
+            $refreshBtn.Size = New-Object System.Drawing.Size(100, 35)
+            $refreshBtn.Add_Click({
+                    & $loadTasks
+                })
+            $taskDialog.Controls.Add($refreshBtn)
+            
+            # Edit Button
+            $editBtn = New-Object System.Windows.Forms.Button
+            $editBtn.Text = "Edit Selected"
+            $editBtn.Location = New-Object System.Drawing.Point(130, 370)
+            $editBtn.Size = New-Object System.Drawing.Size(120, 35)
+            $editBtn.BackColor = [System.Drawing.Color]::FromArgb(0, 123, 191)
+            $editBtn.ForeColor = [System.Drawing.Color]::White
+            $editBtn.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+            $editBtn.Add_Click({
+                    if ($taskListBox.SelectedIndex -ge 0 -and $script:currentTasks) {
+                        $selectedTask = $script:currentTasks[$taskListBox.SelectedIndex]
+                    
+                        # Populate main form fields with task data
+                        $taskNameText.Text = $selectedTask.TaskName + "_Edited"
+                    
+                        # Get task details to extract schedule info
+                        $taskObj = Get-ScheduledTask -TaskName $selectedTask.TaskName
+                        $trigger = $taskObj.Triggers[0]
+                    
+                        # Set frequency based on trigger type
+                        if ($trigger.CimClass.CimClassName -like "*Daily*") {
+                            $freqCombo.SelectedItem = "Daily"
+                        }
+                        elseif ($trigger.CimClass.CimClassName -like "*Weekly*") {
+                            $freqCombo.SelectedItem = "Weekly"
+                        }
+                        else {
+                            $freqCombo.SelectedItem = "Monthly"
+                        }
+                    
+                        # Set time
+                        if ($trigger.StartBoundary) {
+                            $startTime = [DateTime]::Parse($trigger.StartBoundary)
+                            $timeText.Text = $startTime.ToString("HH:mm")
+                        }
+                    
+                        # Close dialog and switch to Scheduled Audits tab
+                        $taskDialog.Close()
+                        $tabControl.SelectedTab = $scheduleTab
+                    
+                        [System.Windows.Forms.MessageBox]::Show("Task details loaded. Modify as needed and click 'Create Scheduled Task'.`n`nNote: The old task will be replaced when you create the new one with -Force.", "Edit Mode", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+                    }
+                    else {
+                        [System.Windows.Forms.MessageBox]::Show("Please select a task to edit.", "No Selection", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
+                    }
+                })
+            $taskDialog.Controls.Add($editBtn)
+            
+            # Delete Button
+            $deleteBtn = New-Object System.Windows.Forms.Button
+            $deleteBtn.Text = "Delete Selected"
+            $deleteBtn.Location = New-Object System.Drawing.Point(260, 370)
+            $deleteBtn.Size = New-Object System.Drawing.Size(120, 35)
+            $deleteBtn.BackColor = [System.Drawing.Color]::FromArgb(220, 53, 69)
+            $deleteBtn.ForeColor = [System.Drawing.Color]::White
+            $deleteBtn.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+            $deleteBtn.Add_Click({
+                    if ($taskListBox.SelectedIndex -ge 0 -and $script:currentTasks) {
+                        $selectedTask = $script:currentTasks[$taskListBox.SelectedIndex]
+                    
+                        $result = [System.Windows.Forms.MessageBox]::Show("Are you sure you want to delete the task '$($selectedTask.TaskName)'?", "Confirm Delete", [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Warning)
+                    
+                        if ($result -eq [System.Windows.Forms.DialogResult]::Yes) {
+                            try {
+                                if (-not (Get-Command -Name Remove-ScheduledAudit -ErrorAction SilentlyContinue)) {
+                                    . "$PSScriptRoot\Functions\New-ScheduledAudit.ps1"
+                                }
+                            
+                                Remove-ScheduledAudit -TaskName $selectedTask.TaskName
+                                [System.Windows.Forms.MessageBox]::Show("Task '$($selectedTask.TaskName)' deleted successfully.", "Task Deleted", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+                            
+                                # Refresh the list
+                                & $loadTasks
+                            }
+                            catch {
+                                [System.Windows.Forms.MessageBox]::Show("Failed to delete task: $($_.Exception.Message)", "Delete Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+                            }
+                        }
+                    }
+                    else {
+                        [System.Windows.Forms.MessageBox]::Show("Please select a task to delete.", "No Selection", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
+                    }
+                })
+            $taskDialog.Controls.Add($deleteBtn)
+            
+            # Close Button
+            $closeBtn = New-Object System.Windows.Forms.Button
+            $closeBtn.Text = "Close"
+            $closeBtn.Location = New-Object System.Drawing.Point(560, 370)
+            $closeBtn.Size = New-Object System.Drawing.Size(100, 35)
+            $closeBtn.Add_Click({
+                    $taskDialog.Close()
+                })
+            $taskDialog.Controls.Add($closeBtn)
+            
+            # Show the dialog
+            $taskDialog.ShowDialog() | Out-Null
         }
         catch {
-            [System.Windows.Forms.MessageBox]::Show("Failed to retrieve scheduled tasks: $($_.Exception.Message)", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+            [System.Windows.Forms.MessageBox]::Show("Failed to open task manager: $($_.Exception.Message)", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
         }
     })
 
