@@ -66,6 +66,141 @@ catch {
     Write-Host "Could not load configuration: $_" -ForegroundColor Yellow
 }
 
+# ============================================
+# THEME FUNCTIONS
+# ============================================
+
+function Apply-LightTheme {
+    param($Form, $TabControl)
+    
+    # Modern Light Theme - Soft, warm tones
+    # Background: Warm cream instead of harsh white
+    $Form.BackColor = [System.Drawing.Color]::FromArgb(250, 249, 246)
+    
+    # Tab control and pages
+    foreach ($tab in $TabControl.TabPages) {
+        $tab.BackColor = [System.Drawing.Color]::FromArgb(250, 249, 246)
+        $tab.ForeColor = [System.Drawing.Color]::FromArgb(30, 30, 30)
+        
+        foreach ($control in $tab.Controls) {
+            Apply-LightThemeToControl $control
+        }
+    }
+}
+
+function Apply-LightThemeToControl {
+    param($Control)
+    
+    if ($Control -is [System.Windows.Forms.GroupBox]) {
+        $Control.ForeColor = [System.Drawing.Color]::FromArgb(40, 40, 40)
+    }
+    elseif ($Control -is [System.Windows.Forms.Label]) {
+        if ($Control.Font.Bold -and $Control.Font.Size -ge 10) {
+            # Title labels - Refined teal accent
+            if ($Control.ForeColor.ToArgb() -ne [System.Drawing.Color]::Gray.ToArgb()) {
+                $Control.ForeColor = [System.Drawing.Color]::FromArgb(0, 122, 153)
+            }
+        }
+        else {
+            $Control.ForeColor = [System.Drawing.Color]::FromArgb(50, 50, 50)
+        }
+    }
+    elseif ($Control -is [System.Windows.Forms.TextBox]) {
+        $Control.BackColor = [System.Drawing.Color]::FromArgb(255, 255, 255)
+        $Control.ForeColor = [System.Drawing.Color]::FromArgb(30, 30, 30)
+    }
+    elseif ($Control -is [System.Windows.Forms.CheckBox]) {
+        $Control.ForeColor = [System.Drawing.Color]::FromArgb(50, 50, 50)
+    }
+    elseif ($Control -is [System.Windows.Forms.DataGridView]) {
+        $Control.BackgroundColor = [System.Drawing.Color]::FromArgb(255, 255, 255)
+        $Control.ForeColor = [System.Drawing.Color]::FromArgb(30, 30, 30)
+        $Control.DefaultCellStyle.BackColor = [System.Drawing.Color]::FromArgb(255, 255, 255)
+        $Control.DefaultCellStyle.ForeColor = [System.Drawing.Color]::FromArgb(30, 30, 30)
+        $Control.ColumnHeadersDefaultCellStyle.BackColor = [System.Drawing.Color]::FromArgb(245, 245, 245)
+        $Control.ColumnHeadersDefaultCellStyle.ForeColor = [System.Drawing.Color]::FromArgb(40, 40, 40)
+    }
+    elseif ($Control -is [System.Windows.Forms.ListBox]) {
+        $Control.BackColor = [System.Drawing.Color]::FromArgb(255, 255, 255)
+        $Control.ForeColor = [System.Drawing.Color]::FromArgb(30, 30, 30)
+    }
+    
+    # Recursively apply to child controls
+    if ($Control.Controls.Count -gt 0) {
+        foreach ($child in $Control.Controls) {
+            Apply-LightThemeToControl $child
+        }
+    }
+}
+
+function Apply-DarkTheme {
+    param($Form, $TabControl)
+    
+    # Modern Dark Theme - True dark with comfortable blue-gray tones
+    # Background: Dark charcoal with slight blue tint
+    $Form.BackColor = [System.Drawing.Color]::FromArgb(24, 26, 31)
+    
+    # Tab control and pages
+    foreach ($tab in $TabControl.TabPages) {
+        $tab.BackColor = [System.Drawing.Color]::FromArgb(24, 26, 31)
+        $tab.ForeColor = [System.Drawing.Color]::FromArgb(230, 230, 230)
+        
+        foreach ($control in $tab.Controls) {
+            Apply-DarkThemeToControl $control
+        }
+    }
+}
+
+function Apply-DarkThemeToControl {
+    param($Control)
+    
+    if ($Control -is [System.Windows.Forms.GroupBox]) {
+        $Control.ForeColor = [System.Drawing.Color]::FromArgb(200, 200, 200)
+    }
+    elseif ($Control -is [System.Windows.Forms.Label]) {
+        if ($Control.Font.Bold -and $Control.Font.Size -ge 10) {
+            # Title labels - Soft cyan accent, easy on eyes
+            if ($Control.ForeColor.ToArgb() -ne [System.Drawing.Color]::Gray.ToArgb()) {
+                $Control.ForeColor = [System.Drawing.Color]::FromArgb(100, 200, 255)
+            }
+        }
+        else {
+            $Control.ForeColor = [System.Drawing.Color]::FromArgb(220, 220, 220)
+        }
+    }
+    elseif ($Control -is [System.Windows.Forms.TextBox]) {
+        $Control.BackColor = [System.Drawing.Color]::FromArgb(37, 40, 47)
+        $Control.ForeColor = [System.Drawing.Color]::FromArgb(230, 230, 230)
+    }
+    elseif ($Control -is [System.Windows.Forms.CheckBox]) {
+        $Control.ForeColor = [System.Drawing.Color]::FromArgb(220, 220, 220)
+    }
+    elseif ($Control -is [System.Windows.Forms.DataGridView]) {
+        $Control.BackgroundColor = [System.Drawing.Color]::FromArgb(37, 40, 47)
+        $Control.ForeColor = [System.Drawing.Color]::FromArgb(230, 230, 230)
+        $Control.DefaultCellStyle.BackColor = [System.Drawing.Color]::FromArgb(37, 40, 47)
+        $Control.DefaultCellStyle.ForeColor = [System.Drawing.Color]::FromArgb(230, 230, 230)
+        $Control.ColumnHeadersDefaultCellStyle.BackColor = [System.Drawing.Color]::FromArgb(30, 33, 39)
+        $Control.ColumnHeadersDefaultCellStyle.ForeColor = [System.Drawing.Color]::FromArgb(200, 200, 200)
+    }
+    elseif ($Control -is [System.Windows.Forms.ListBox]) {
+        $Control.BackColor = [System.Drawing.Color]::FromArgb(37, 40, 47)
+        $Control.ForeColor = [System.Drawing.Color]::FromArgb(230, 230, 230)
+    }
+    
+    # Recursively apply to child controls
+    if ($Control.Controls.Count -gt 0) {
+        foreach ($child in $Control.Controls) {
+            Apply-DarkThemeToControl $child
+        }
+    }
+}
+
+
+# ============================================
+# MAIN FORM
+# ============================================
+
 # Main Form
 $form = New-Object System.Windows.Forms.Form
 $form.Text = "DAT - Advanced Audit Tool v2.0"
@@ -377,6 +512,32 @@ $testAlertBtn.Text = "Test Alert"
 $testAlertBtn.Location = New-Object System.Drawing.Point(200, 205)
 $testAlertBtn.Size = New-Object System.Drawing.Size(120, 30)
 $alertingGroup.Controls.Add($testAlertBtn)
+
+# Appearance Group
+$appearanceGroup = New-Object System.Windows.Forms.GroupBox
+$appearanceGroup.Text = "Appearance"
+$appearanceGroup.Font = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
+$appearanceGroup.Size = New-Object System.Drawing.Size(500, 120)
+$appearanceGroup.Location = New-Object System.Drawing.Point(20, 520)
+$settingsTab.Controls.Add($appearanceGroup)
+
+# Dark Mode Checkbox
+$darkModeCheck = New-Object System.Windows.Forms.CheckBox
+$darkModeCheck.Text = "Enable Dark Mode"
+$darkModeCheck.Location = New-Object System.Drawing.Point(20, 30)
+$darkModeCheck.Size = New-Object System.Drawing.Size(200, 20)
+$darkModeCheck.Checked = if ($script:config -and $script:config.ui -and $script:config.ui.theme -eq "dark") { $true } else { $false }
+$appearanceGroup.Controls.Add($darkModeCheck)
+
+# Apply Theme Button
+$applyThemeBtn = New-Object System.Windows.Forms.Button
+$applyThemeBtn.Text = "Apply Theme"
+$applyThemeBtn.Location = New-Object System.Drawing.Point(20, 60)
+$applyThemeBtn.Size = New-Object System.Drawing.Size(150, 35)
+$applyThemeBtn.BackColor = [System.Drawing.Color]::FromArgb(0, 123, 191)
+$applyThemeBtn.ForeColor = [System.Drawing.Color]::White
+$applyThemeBtn.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+$appearanceGroup.Controls.Add($applyThemeBtn)
 
 # ============================================
 # TAB 3: SCHEDULING
@@ -1027,6 +1188,56 @@ $testAlertBtn.Add_Click({
         }
     })
 
+# Apply Theme Button
+$applyThemeBtn.Add_Click({
+        try {
+            # Load Set-Configuration if not already loaded
+            if (-not (Get-Command -Name Set-Configuration -ErrorAction SilentlyContinue)) {
+                $setConfigPath = Join-Path -Path $script:ScriptRoot -ChildPath "Functions\Set-Configuration.ps1"
+                if (Test-Path $setConfigPath) {
+                    . $setConfigPath
+                }
+            }
+            
+            # Apply the selected theme
+            if ($darkModeCheck.Checked) {
+                Apply-DarkTheme -Form $form -TabControl $tabControl
+                
+                # Update config
+                if (-not $script:config) {
+                    $script:config = @{}
+                }
+                if (-not $script:config.ui) {
+                    $script:config | Add-Member -MemberType NoteProperty -Name "ui" -Value @{} -Force
+                }
+                $script:config.ui.theme = "dark"
+            }
+            else {
+                Apply-LightTheme -Form $form -TabControl $tabControl
+                
+                # Update config
+                if (-not $script:config) {
+                    $script:config = @{}
+                }
+                if (-not $script:config.ui) {
+                    $script:config | Add-Member -MemberType NoteProperty -Name "ui" -Value @{} -Force
+                }
+                $script:config.ui.theme = "light"
+            }
+            
+            # Save configuration
+            if (Get-Command -Name Set-Configuration -ErrorAction SilentlyContinue) {
+                Set-Configuration -Configuration $script:config | Out-Null
+            }
+            
+            $form.Refresh()
+            [System.Windows.Forms.MessageBox]::Show("Theme applied and saved successfully!", "Theme Updated", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+        }
+        catch {
+            [System.Windows.Forms.MessageBox]::Show("Failed to apply theme: $($_.Exception.Message)", "Theme Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+        }
+    })
+
 # Create Schedule Button
 $createScheduleBtn.Add_Click({
         try {
@@ -1284,6 +1495,14 @@ $createPluginBtn.Add_Click({
 
 # Initialize plugins list on startup
 $refreshPluginsBtn.PerformClick()
+
+# Apply saved theme on startup
+if ($script:config -and $script:config.ui -and $script:config.ui.theme -eq "dark") {
+    Apply-DarkTheme -Form $form -TabControl $tabControl
+}
+else {
+    Apply-LightTheme -Form $form -TabControl $tabControl
+}
 
 # Show the form
 $form.Add_Shown({ $form.Activate() })

@@ -1,4 +1,7 @@
 ﻿{
+    "ui":  {
+               "theme":  "dark"
+           },
     "alerting":  {
                      "webhook":  {
                                      "url":  ""
