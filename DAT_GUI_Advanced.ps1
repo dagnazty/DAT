@@ -31,7 +31,8 @@ foreach ($file in $functionFiles) {
     try {
         . $file.FullName
         Write-Host "  [OK] $($file.Name)" -ForegroundColor Green
-    } catch {
+    }
+    catch {
         Write-Host "  [FAIL] $($file.Name): $_" -ForegroundColor Red
     }
 }
@@ -39,7 +40,8 @@ foreach ($file in $functionFiles) {
 # Verify Send-Alert is loaded
 if (Get-Command -Name Send-Alert -ErrorAction SilentlyContinue) {
     Write-Host "Send-Alert function is loaded and ready!" -ForegroundColor Green
-} else {
+}
+else {
     Write-Host "WARNING: Send-Alert function not loaded!" -ForegroundColor Red
 }
 
@@ -51,13 +53,16 @@ try {
         $script:config = Get-Configuration
         if ($null -eq $script:config) {
             Write-Host "No configuration found, using defaults" -ForegroundColor Yellow
-        } else {
+        }
+        else {
             Write-Host "Configuration loaded successfully!" -ForegroundColor Green
         }
-    } else {
+    }
+    else {
         Write-Host "Configuration function not available, using defaults" -ForegroundColor Yellow
     }
-} catch {
+}
+catch {
     Write-Host "Could not load configuration: $_" -ForegroundColor Yellow
 }
 
@@ -128,8 +133,8 @@ $selectAllBtn.Font = New-Object System.Drawing.Font("Segoe UI", 8)
 $selectAllBtn.Size = New-Object System.Drawing.Size(80, 30)
 $selectAllBtn.Location = New-Object System.Drawing.Point(20, $buttonYPos)
 $selectAllBtn.Add_Click({
-    foreach ($cb in $checkboxes) { $cb.Checked = $true }
-})
+        foreach ($cb in $checkboxes) { $cb.Checked = $true }
+    })
 $functionGroup.Controls.Add($selectAllBtn)
 
 $clearAllBtn = New-Object System.Windows.Forms.Button
@@ -138,8 +143,8 @@ $clearAllBtn.Font = New-Object System.Drawing.Font("Segoe UI", 8)
 $clearAllBtn.Size = New-Object System.Drawing.Size(80, 30)
 $clearAllBtn.Location = New-Object System.Drawing.Point(110, $buttonYPos)
 $clearAllBtn.Add_Click({
-    foreach ($cb in $checkboxes) { $cb.Checked = $false }
-})
+        foreach ($cb in $checkboxes) { $cb.Checked = $false }
+    })
 $functionGroup.Controls.Add($clearAllBtn)
 
 # Run Audit Button
@@ -534,565 +539,613 @@ $pluginsTab.Controls.Add($pluginOutputBox)
 
 # Run Audit Button Click Event (from Tab 1)
 $runAuditBtn.Add_Click({
-    $selectedFunctions = @()
-    foreach ($i in 0..($checkboxes.Count - 1)) {
-        if ($checkboxes[$i].Checked) {
-            $selectedFunctions += $functions[$i]
-        }
-    }
-
-    if ($selectedFunctions.Count -eq 0) {
-        [System.Windows.Forms.MessageBox]::Show("Please select at least one audit function to run.", "No Selection", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
-        return
-    }
-
-    $runAuditBtn.Enabled = $false
-    $exportCsvBtn.Enabled = $false
-    $exportHtmlBtn.Enabled = $false
-
-    $resultsGrid.Rows.Clear()
-    $resultsGrid.Columns.Clear()
-    $statusLabel.Text = "Running audits..."
-    $progressBar.Value = 0
-
-    # Run audits
-    $results = @{}
-    $totalFunctions = $selectedFunctions.Count
-    $currentIndex = 0
-
-    foreach ($func in $selectedFunctions) {
-        $currentIndex++
-        $progressPercent = [math]::Round(($currentIndex / $totalFunctions) * 90)
-        $progressBar.Value = $progressPercent
-        $statusLabel.Text = "Running $func... ($currentIndex of $totalFunctions)"
-        $form.Refresh()
-
-        try {
-            $functionName = switch ($func) {
-                "SystemUptime" { "Get-SystemUptime" }
-                "RunningProcesses" { "Get-RunningProcesses" }
-                "PerformanceMetrics" { "Get-PerformanceMetrics" }
-                "HardwareInventory" { "Get-HardwareInventory" }
-                "EventLogSummary" { "Get-EventLogSummary" }
-                "SecurityUpdateStatus" { "Get-SecurityUpdateStatus" }
-                "SoftwareLicensing" { "Get-SoftwareLicensing" }
-                "WindowsUpdateHistory" { "Get-WindowsUpdateHistory" }
-                "DriversInformation" { "Get-DriversInformation" }
-                "BackupStatus" { "Get-BackupStatus" }
-                "OpenPorts" { "Get-OpenPorts" }
-                "UserGroups" { "Get-UserGroupMemberships" }
-                "RegistryScan" { "Scan-SuspiciousRegistryEntries" }
-                "DiskHealth" { "Get-DiskHealth" }
-            }
-
-            $result = & $functionName
-            $results[$func] = @{
-                Status = "Success"
-                Data = $result
-                Count = if ($result -is [System.Collections.IEnumerable] -and $result -isnot [string]) { $result.Count } else { 1 }
-            }
-        } catch {
-            $results[$func] = @{
-                Status = "Error"
-                Data = $_.Exception.Message
-                Count = 0
+        $selectedFunctions = @()
+        foreach ($i in 0..($checkboxes.Count - 1)) {
+            if ($checkboxes[$i].Checked) {
+                $selectedFunctions += $functions[$i]
             }
         }
-    }
 
-    $auditResults = $results
+        if ($selectedFunctions.Count -eq 0) {
+            [System.Windows.Forms.MessageBox]::Show("Please select at least one audit function to run.", "No Selection", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
+            return
+        }
 
-    # Process results for display
-    $allData = @()
-    foreach ($func in $selectedFunctions) {
-        $result = $auditResults[$func]
-        if ($result.Status -eq "Success") {
-            if ($result.Data -is [System.Collections.IEnumerable] -and $result.Data -isnot [string] -and $result.Count -gt 1) {
-                $itemCount = 0
-                foreach ($item in $result.Data) {
-                    if ($itemCount -ge 5) {
-                        $allData += [PSCustomObject]@{
-                            Function = $func
-                            Status = "..."
-                            Info = "($($result.Count - 5) more items - see CSV export)"
-                        }
-                        break
-                    }
-                    $itemData = [PSCustomObject]@{
-                        Function = $func
-                        Status = "Success"
-                    }
-                    foreach ($prop in $item.PSObject.Properties) {
-                        $itemData | Add-Member -MemberType NoteProperty -Name $prop.Name -Value $prop.Value -Force
-                    }
-                    $allData += $itemData
-                    $itemCount++
+        $runAuditBtn.Enabled = $false
+        $exportCsvBtn.Enabled = $false
+        $exportHtmlBtn.Enabled = $false
+
+        $resultsGrid.Rows.Clear()
+        $resultsGrid.Columns.Clear()
+        $statusLabel.Text = "Running audits..."
+        $progressBar.Value = 0
+
+        # Run audits
+        $results = @{}
+        $totalFunctions = $selectedFunctions.Count
+        $currentIndex = 0
+
+        foreach ($func in $selectedFunctions) {
+            $currentIndex++
+            $progressPercent = [math]::Round(($currentIndex / $totalFunctions) * 90)
+            $progressBar.Value = $progressPercent
+            $statusLabel.Text = "Running $func... ($currentIndex of $totalFunctions)"
+            $form.Refresh()
+
+            try {
+                $functionName = switch ($func) {
+                    "SystemUptime" { "Get-SystemUptime" }
+                    "RunningProcesses" { "Get-RunningProcesses" }
+                    "PerformanceMetrics" { "Get-PerformanceMetrics" }
+                    "HardwareInventory" { "Get-HardwareInventory" }
+                    "EventLogSummary" { "Get-EventLogSummary" }
+                    "SecurityUpdateStatus" { "Get-SecurityUpdateStatus" }
+                    "SoftwareLicensing" { "Get-SoftwareLicensing" }
+                    "WindowsUpdateHistory" { "Get-WindowsUpdateHistory" }
+                    "DriversInformation" { "Get-DriversInformation" }
+                    "BackupStatus" { "Get-BackupStatus" }
+                    "OpenPorts" { "Get-OpenPorts" }
+                    "UserGroups" { "Get-UserGroupMemberships" }
+                    "RegistryScan" { "Scan-SuspiciousRegistryEntries" }
+                    "DiskHealth" { "Get-DiskHealth" }
                 }
-            } else {
-                $displayData = [PSCustomObject]@{
-                    Function = $func
+
+                $result = & $functionName
+                $results[$func] = @{
                     Status = "Success"
+                    Data   = $result
+                    Count  = if ($result -is [System.Collections.IEnumerable] -and $result -isnot [string]) { $result.Count } else { 1 }
                 }
-                if ($result.Data -is [PSCustomObject]) {
-                    foreach ($prop in $result.Data.PSObject.Properties) {
-                        $displayData | Add-Member -MemberType NoteProperty -Name $prop.Name -Value $prop.Value -Force
+            }
+            catch {
+                $results[$func] = @{
+                    Status = "Error"
+                    Data   = $_.Exception.Message
+                    Count  = 0
+                }
+            }
+        }
+
+        $auditResults = $results
+
+        # Process results for display
+        $allData = @()
+        foreach ($func in $selectedFunctions) {
+            $result = $auditResults[$func]
+            if ($result.Status -eq "Success") {
+                if ($result.Data -is [System.Collections.IEnumerable] -and $result.Data -isnot [string] -and $result.Count -gt 1) {
+                    $itemCount = 0
+                    foreach ($item in $result.Data) {
+                        if ($itemCount -ge 5) {
+                            $allData += [PSCustomObject]@{
+                                Function = $func
+                                Status   = "..."
+                                Info     = "($($result.Count - 5) more items - see CSV export)"
+                            }
+                            break
+                        }
+                        $itemData = [PSCustomObject]@{
+                            Function = $func
+                            Status   = "Success"
+                        }
+                        foreach ($prop in $item.PSObject.Properties) {
+                            $itemData | Add-Member -MemberType NoteProperty -Name $prop.Name -Value $prop.Value -Force
+                        }
+                        $allData += $itemData
+                        $itemCount++
                     }
-                } else {
-                    $displayData | Add-Member -MemberType NoteProperty -Name "Result" -Value $result.Data.ToString() -Force
                 }
-                $allData += $displayData
+                else {
+                    $displayData = [PSCustomObject]@{
+                        Function = $func
+                        Status   = "Success"
+                    }
+                    if ($result.Data -is [PSCustomObject]) {
+                        foreach ($prop in $result.Data.PSObject.Properties) {
+                            $displayData | Add-Member -MemberType NoteProperty -Name $prop.Name -Value $prop.Value -Force
+                        }
+                    }
+                    else {
+                        $displayData | Add-Member -MemberType NoteProperty -Name "Result" -Value $result.Data.ToString() -Force
+                    }
+                    $allData += $displayData
+                }
             }
-        } else {
-            $allData += [PSCustomObject]@{
-                Function = $func
-                Status = "Error"
-                Error = $result.Data
-                Count = 0
+            else {
+                $allData += [PSCustomObject]@{
+                    Function = $func
+                    Status   = "Error"
+                    Error    = $result.Data
+                    Count    = 0
+                }
             }
         }
-    }
 
-    # Display results in grid
-    $resultsGrid.Rows.Clear()
-    $resultsGrid.Columns.Clear()
+        # Display results in grid
+        $resultsGrid.Rows.Clear()
+        $resultsGrid.Columns.Clear()
     
-    if ($allData.Count -gt 0) {
-        $allColumns = @{}
-        foreach ($item in $allData) {
-            foreach ($prop in $item.PSObject.Properties) {
-                $allColumns[$prop.Name] = $true
-            }
-        }
-        
-        foreach ($colName in $allColumns.Keys) {
-            $column = New-Object System.Windows.Forms.DataGridViewTextBoxColumn
-            $column.Name = $colName
-            $column.HeaderText = $colName
-            $column.AutoSizeMode = [System.Windows.Forms.DataGridViewAutoSizeColumnMode]::AllCells
-            $resultsGrid.Columns.Add($column) | Out-Null
-        }
-        
-        foreach ($item in $allData) {
-            $row = New-Object System.Windows.Forms.DataGridViewRow
-            $row.CreateCells($resultsGrid)
-            
-            $colIndex = 0
-            foreach ($colName in $allColumns.Keys) {
-                $value = $item.$colName
-                if ($null -ne $value) {
-                    $row.Cells[$colIndex].Value = $value.ToString()
-                } else {
-                    $row.Cells[$colIndex].Value = ""
+        if ($allData.Count -gt 0) {
+            $allColumns = @{}
+            foreach ($item in $allData) {
+                foreach ($prop in $item.PSObject.Properties) {
+                    $allColumns[$prop.Name] = $true
                 }
-                $colIndex++
             }
-            
-            $resultsGrid.Rows.Add($row) | Out-Null
-        }
         
-        $resultsGrid.AutoResizeColumns()
-    }
+            foreach ($colName in $allColumns.Keys) {
+                $column = New-Object System.Windows.Forms.DataGridViewTextBoxColumn
+                $column.Name = $colName
+                $column.HeaderText = $colName
+                $column.AutoSizeMode = [System.Windows.Forms.DataGridViewAutoSizeColumnMode]::AllCells
+                $resultsGrid.Columns.Add($column) | Out-Null
+            }
+        
+            foreach ($item in $allData) {
+                $row = New-Object System.Windows.Forms.DataGridViewRow
+                $row.CreateCells($resultsGrid)
+            
+                $colIndex = 0
+                foreach ($colName in $allColumns.Keys) {
+                    $value = $item.$colName
+                    if ($null -ne $value) {
+                        $row.Cells[$colIndex].Value = $value.ToString()
+                    }
+                    else {
+                        $row.Cells[$colIndex].Value = ""
+                    }
+                    $colIndex++
+                }
+            
+                $resultsGrid.Rows.Add($row) | Out-Null
+            }
+        
+            $resultsGrid.AutoResizeColumns()
+        }
 
-    $statusLabel.Text = "Audit completed! Found $($allData.Count) result items."
-    $progressBar.Value = 100
+        $statusLabel.Text = "Audit completed! Found $($allData.Count) result items."
+        $progressBar.Value = 100
 
-    $script:auditResults = $auditResults
-    $script:allData = $allData
+        $script:auditResults = $auditResults
+        $script:allData = $allData
 
-    # Send Webhook Alert if enabled
-    if ($script:config -and $script:config.alerting.enabled -and $script:config.alerting.webhook.url) {
+        # Send Webhook Alert if enabled
+        if ($script:config -and $script:config.alerting.enabled -and $script:config.alerting.webhook.url) {
+            try {
+                # Ensure Send-Alert is loaded
+                if (-not (Get-Command -Name Send-Alert -ErrorAction SilentlyContinue)) {
+                    $alertPath = Join-Path -Path $script:ScriptRoot -ChildPath "Functions\Send-Alert.ps1"
+                    if (Test-Path $alertPath) {
+                        . $alertPath
+                    }
+                }
+
+                $alertMessage = "Audit Run Completed on $env:COMPUTERNAME`n`n"
+                $alertMessage += "Total Functions: $($selectedFunctions.Count)`n"
+                $attachments = @()
+                $combinedDetails = [System.Text.StringBuilder]::new()
+            
+                foreach ($func in $selectedFunctions) {
+                    $res = $auditResults[$func]
+                    $status = $res.Status
+                    $alertMessage += "- $func`: $status`n"
+                
+                    if ($status -eq "Success") {
+                        $data = $res.Data
+                        $count = $res.Count
+                        
+                        # Convert data to string for analysis and potential attachment
+                        $dataString = if ($data -is [string]) { 
+                            $data 
+                        }
+                        elseif ($data -is [System.Collections.IEnumerable] -and $data -isnot [string]) {
+                            ($data | Format-Table -AutoSize | Out-String).Trim()
+                        }
+                        else {
+                            ($data | Format-List | Out-String).Trim()
+                        }
+
+                        # User Request: Only SystemUptime details in the message body. All others go to attachment.
+                        $isVerbose = ($func -ne "SystemUptime")
+
+                        if ($isVerbose) {
+                            # Add to combined details attachment
+                            [void]$combinedDetails.AppendLine("========================================")
+                            [void]$combinedDetails.AppendLine("FUNCTION: $func")
+                            [void]$combinedDetails.AppendLine("========================================")
+                            [void]$combinedDetails.AppendLine($dataString)
+                            [void]$combinedDetails.AppendLine("") 
+                            
+                            $alertMessage += "   - Details included in attached report.`n"
+                        }
+                        else {
+                            # Small result: Embed in message
+                            if ($data -is [string]) {
+                                $alertMessage += "   Result: $data`n"
+                            }
+                            elseif ($data -is [System.Collections.IEnumerable]) {
+                                foreach ($item in $data) {
+                                    if ($item -is [string]) {
+                                        $alertMessage += "   - $item`n"
+                                    }
+                                    else {
+                                        $alertMessage += ($item | Format-List | Out-String).Trim() + "`n"
+                                    }
+                                }
+                            }
+                            else {
+                                $alertMessage += ($data | Format-List | Out-String).Trim() + "`n"
+                            }
+                        }
+                    }
+                    else {
+                        $alertMessage += "   Error: $($res.Data)`n"
+                    }
+                }
+
+                # Create attachment if we have details
+                if ($combinedDetails.Length -gt 0) {
+                    $detailsPath = "$env:TEMP\DAT_Audit_Details_$($env:COMPUTERNAME)_$(Get-Date -Format 'yyyyMMdd-HHmmss').txt"
+                    $combinedDetails.ToString() | Set-Content -Path $detailsPath
+                    $attachments += $detailsPath
+                    $alertMessage += "`n[See attached file for detailed results]"
+                }
+
+                Send-Alert -Subject "DAT Audit Summary" -Message $alertMessage -Channels "Webhook" -Severity "Info" -Config $script:config -Attachments $attachments
+            
+                # Cleanup attachments
+                foreach ($file in $attachments) {
+                    if (Test-Path $file) { Remove-Item $file -ErrorAction SilentlyContinue }
+                }
+            }
+            catch {
+                $statusLabel.Text = "Audit completed. Alert failed: $($_.Exception.Message)"
+            }
+        }
+
+        $exportCsvBtn.Enabled = $true
+        $exportHtmlBtn.Enabled = $true
+        $runAuditBtn.Enabled = $true
+    })
+
+# Export CSV Button
+$exportCsvBtn.Add_Click({
+        if (-not $script:auditResults) {
+            [System.Windows.Forms.MessageBox]::Show("No data to export. Please run an audit first.", "No Data", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
+            return
+        }
+
+        $saveDialog = New-Object System.Windows.Forms.SaveFileDialog
+        $saveDialog.Filter = "CSV files (*.csv)|*.csv"
+        $saveDialog.FileName = "DAT_Audit_Results_$(Get-Date -Format 'yyyyMMdd_HHmmss').csv"
+        $saveDialog.Title = "Save Audit Results to CSV"
+
+        if ($saveDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+            try {
+                $exportPath = $saveDialog.FileName
+                $directory = Split-Path -Path $exportPath -Parent
+                $baseFileName = [System.IO.Path]::GetFileNameWithoutExtension($exportPath)
+                $exportedFiles = @()
+
+                foreach ($func in $script:auditResults.Keys) {
+                    $result = $script:auditResults[$func]
+                    if ($result.Status -eq "Success" -and $result.Data) {
+                        $funcFileName = Join-Path -Path $directory -ChildPath "$baseFileName`_$func.csv"
+                        if ($result.Data -is [System.Collections.IEnumerable] -and $result.Data -isnot [string]) {
+                            $result.Data | Export-Csv -Path $funcFileName -NoTypeInformation
+                        }
+                        else {
+                            @($result.Data) | Export-Csv -Path $funcFileName -NoTypeInformation
+                        }
+                        $exportedFiles += $funcFileName
+                    }
+                }
+
+                $message = "Results exported successfully!`n`nExported $($exportedFiles.Count) files:`n"
+                foreach ($file in $exportedFiles) {
+                    $message += "`n- $(Split-Path -Path $file -Leaf)"
+                }
+                [System.Windows.Forms.MessageBox]::Show($message, "Export Complete", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+            }
+            catch {
+                [System.Windows.Forms.MessageBox]::Show("Failed to export CSV: $($_.Exception.Message)", "Export Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+            }
+        }
+    })
+
+# Export HTML Button
+# Export HTML Button
+$exportHtmlBtn.Add_Click({
+        if (-not $script:auditResults) {
+            [System.Windows.Forms.MessageBox]::Show("No data to export. Please run an audit first.", "No Data", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
+            return
+        }
+
+        $saveDialog = New-Object System.Windows.Forms.SaveFileDialog
+        $saveDialog.Filter = "HTML files (*.html)|*.html"
+        $saveDialog.FileName = "DAT_Audit_Report_$(Get-Date -Format 'yyyyMMdd_HHmmss').html"
+        $saveDialog.Title = "Save Audit Report as HTML"
+
+        if ($saveDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+            try {
+                # Try to load the function if not already loaded
+                if (-not (Get-Command -Name New-HTMLReport -ErrorAction SilentlyContinue)) {
+                    $htmlPath = Join-Path -Path $script:ScriptRoot -ChildPath "Functions\New-HTMLReport.ps1"
+                    if (Test-Path $htmlPath) {
+                        . $htmlPath
+                    }
+                    else {
+                        throw "New-HTMLReport.ps1 not found at $htmlPath"
+                    }
+                }
+
+                # Verify it loaded correctly
+                if (-not (Get-Command -Name New-HTMLReport -ErrorAction SilentlyContinue)) {
+                    throw "Failed to load New-HTMLReport function."
+                }
+
+                $htmlData = @{}
+                foreach ($key in $script:auditResults.Keys) {
+                    $htmlData[$key] = $script:auditResults[$key].Data
+                }
+
+                New-HTMLReport -OutputPath $saveDialog.FileName -AuditData $htmlData -CompanyName "DAT Advanced Tool"
+            
+                if (Test-Path $saveDialog.FileName) {
+                    [System.Windows.Forms.MessageBox]::Show("HTML report generated successfully:`n$($saveDialog.FileName)", "Report Complete", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+                }
+                else {
+                    throw "File was not created at $($saveDialog.FileName)"
+                }
+            }
+            catch {
+                [System.Windows.Forms.MessageBox]::Show("Failed to generate HTML report: $($_.Exception.Message)", "Report Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+            }
+        }
+    })
+
+# Compliance Check Button
+$complianceBtn.Add_Click({
         try {
-            # Ensure Send-Alert is loaded
+            if (-not (Get-Command -Name Test-Compliance -ErrorAction SilentlyContinue)) {
+                $compliancePath = Join-Path -Path $script:ScriptRoot -ChildPath "Functions\Test-Compliance.ps1"
+                if (Test-Path $compliancePath) {
+                    . $compliancePath
+                }
+                else {
+                    throw "Test-Compliance.ps1 not found"
+                }
+            }
+
+            $saveDialog = New-Object System.Windows.Forms.SaveFileDialog
+            $saveDialog.Filter = "CSV files (*.csv)|*.csv"
+            $saveDialog.FileName = "DAT_Compliance_$(Get-Date -Format 'yyyyMMdd_HHmmss').csv"
+            $saveDialog.Title = "Save Compliance Report"
+
+            if ($saveDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+                $complianceResults = Test-Compliance -Standards CIS, NIST -CsvPath $saveDialog.FileName
+                $summary = $complianceResults | Where-Object { $_.Standard -eq "SUMMARY" }
+                [System.Windows.Forms.MessageBox]::Show("Compliance Check Complete!`n`nCompliance Score: $($summary.CompliancePercentage)%`nPassed: $($summary.CurrentValue)`n`nReport saved to:`n$($saveDialog.FileName)", "Compliance Check", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+            }
+        }
+        catch {
+            [System.Windows.Forms.MessageBox]::Show("Failed to run compliance check: $($_.Exception.Message)", "Compliance Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+        }
+    })
+
+# Send Test Alert Button
+$sendAlertBtn.Add_Click({
+        try {
+            # Check if function exists
+            $sendAlertCmd = Get-Command -Name Send-Alert -ErrorAction SilentlyContinue
+        
+            [System.Windows.Forms.MessageBox]::Show("Test alert sent successfully!`n`nCheck Event Viewer > Application Log for the alert.", "Alert Sent", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+        }
+        catch {
+            $errorDetails = "Error: $($_.Exception.Message)`n`nScript Root: $script:ScriptRoot`n`nFunction Path: $(Join-Path -Path $script:ScriptRoot -ChildPath 'Functions\Send-Alert.ps1')"
+            [System.Windows.Forms.MessageBox]::Show($errorDetails, "Alert Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+        }
+    })
+
+# Save Thresholds Button
+$saveThresholdsBtn.Add_Click({
+        try {
+            if ($null -eq $script:config) {
+                $script:config = @{
+                    thresholds = @{}
+                }
+            }
+
+            $script:config.thresholds.cpuUsageWarning = [int]$cpuWarnText.Text
+            $script:config.thresholds.cpuUsageCritical = [int]$cpuCritText.Text
+            $script:config.thresholds.memoryUsageWarning = [int]$memWarnText.Text
+            $script:config.thresholds.memoryUsageCritical = [int]$memCritText.Text
+
+            $configPath = "Config\DefaultConfig.json"
+            $script:config | ConvertTo-Json -Depth 10 | Out-File -FilePath $configPath -Encoding UTF8
+
+            [System.Windows.Forms.MessageBox]::Show("Thresholds saved successfully!", "Settings Saved", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+        }
+        catch {
+            [System.Windows.Forms.MessageBox]::Show("Failed to save thresholds: $($_.Exception.Message)", "Save Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+        }
+    })
+
+# Save Alert Settings Button
+$saveAlertBtn.Add_Click({
+        try {
+            if ($null -eq $script:config) {
+                $script:config = @{
+                    alerting = @{
+                        email   = @{}
+                        webhook = @{}
+                    }
+                }
+            }
+
+            $script:config.alerting.enabled = $enableAlertingCheck.Checked
+            $script:config.alerting.email.smtpServer = $smtpText.Text
+            $script:config.alerting.email.to = $emailToText.Text -split ";"
+            $script:config.alerting.webhook.url = $webhookText.Text
+
+            $configPath = "Config\DefaultConfig.json"
+            $script:config | ConvertTo-Json -Depth 10 | Out-File -FilePath $configPath -Encoding UTF8
+
+            [System.Windows.Forms.MessageBox]::Show("Alert settings saved successfully!", "Settings Saved", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+        }
+        catch {
+            [System.Windows.Forms.MessageBox]::Show("Failed to save alert settings: $($_.Exception.Message)", "Save Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+        }
+    })
+
+# Test Alert Button (Settings Tab)
+$testAlertBtn.Add_Click({
+        try {
             if (-not (Get-Command -Name Send-Alert -ErrorAction SilentlyContinue)) {
                 $alertPath = Join-Path -Path $script:ScriptRoot -ChildPath "Functions\Send-Alert.ps1"
                 if (Test-Path $alertPath) {
                     . $alertPath
                 }
-            }
-
-            $alertMessage = "Audit Run Completed on $env:COMPUTERNAME`n`n"
-            $alertMessage += "Total Functions: $($selectedFunctions.Count)`n"
-            $attachments = @()
-            
-            foreach ($func in $selectedFunctions) {
-                $res = $auditResults[$func]
-                $status = $res.Status
-                $alertMessage += "- $func`: $status`n"
-                
-                if ($func -eq "PerformanceMetrics" -and $status -eq "Success") {
-                    $metrics = $res.Data
-                    $alertMessage += "   - CPU: $($metrics.CPUUsagePercent)%`n"
-                    $alertMessage += "   - Memory: $($metrics.MemoryUsagePercent)%`n"
-                }
-
-                if ($func -eq "SystemUptime" -and $status -eq "Success") {
-                    $uptime = $res.Data
-                    $alertMessage += "   - Uptime: $($uptime.Days) days, $($uptime.Hours) hours, $($uptime.Minutes) minutes`n"
-                    $alertMessage += "   - Last Boot: $($uptime.LastBootTime)`n"
-                }
-
-                if ($func -eq "RunningProcesses" -and $status -eq "Success") {
-                    $processes = $res.Data
-                    if ($processes) {
-                        $procFilePath = "$env:TEMP\DAT_RunningProcesses_$($env:COMPUTERNAME)_$(Get-Date -Format 'yyyyMMdd-HHmmss').txt"
-                        $processes | Format-Table -AutoSize | Out-String | Set-Content -Path $procFilePath
-                        $attachments += $procFilePath
-                        $alertMessage += "   - Running Processes list attached as file.`n"
-                    }
+                else {
+                    throw "Send-Alert.ps1 not found"
                 }
             }
 
-            Send-Alert -Subject "DAT Audit Summary" -Message $alertMessage -Channels "Webhook" -Severity "Info" -Config $script:config -Attachments $attachments
-            
-            # Cleanup attachments
-            foreach ($file in $attachments) {
-                if (Test-Path $file) { Remove-Item $file -ErrorAction SilentlyContinue }
+            $channels = @("EventLog")
+            if ($enableAlertingCheck.Checked -and $smtpText.Text) {
+                $channels += "Email"
             }
-        } catch {
-            $statusLabel.Text = "Audit completed. Alert failed: $($_.Exception.Message)"
+            if ($webhookText.Text -and $webhookText.Text -ne "https://hooks.slack.com/services/...") {
+                $channels += "Webhook"
+            }
+
+            Send-Alert -Subject "DAT Test Alert" -Message "Testing alert configuration from Settings tab" -Channels $channels -Severity Info -Config $script:config
+            [System.Windows.Forms.MessageBox]::Show("Test alert sent!`n`nChannels: $($channels -join ', ')", "Alert Test", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
         }
-    }
-
-    $exportCsvBtn.Enabled = $true
-    $exportHtmlBtn.Enabled = $true
-    $runAuditBtn.Enabled = $true
-})
-
-# Export CSV Button
-$exportCsvBtn.Add_Click({
-    if (-not $script:auditResults) {
-        [System.Windows.Forms.MessageBox]::Show("No data to export. Please run an audit first.", "No Data", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
-        return
-    }
-
-    $saveDialog = New-Object System.Windows.Forms.SaveFileDialog
-    $saveDialog.Filter = "CSV files (*.csv)|*.csv"
-    $saveDialog.FileName = "DAT_Audit_Results_$(Get-Date -Format 'yyyyMMdd_HHmmss').csv"
-    $saveDialog.Title = "Save Audit Results to CSV"
-
-    if ($saveDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
-        try {
-            $exportPath = $saveDialog.FileName
-            $directory = Split-Path -Path $exportPath -Parent
-            $baseFileName = [System.IO.Path]::GetFileNameWithoutExtension($exportPath)
-            $exportedFiles = @()
-
-            foreach ($func in $script:auditResults.Keys) {
-                $result = $script:auditResults[$func]
-                if ($result.Status -eq "Success" -and $result.Data) {
-                    $funcFileName = Join-Path -Path $directory -ChildPath "$baseFileName`_$func.csv"
-                    if ($result.Data -is [System.Collections.IEnumerable] -and $result.Data -isnot [string]) {
-                        $result.Data | Export-Csv -Path $funcFileName -NoTypeInformation
-                    } else {
-                        @($result.Data) | Export-Csv -Path $funcFileName -NoTypeInformation
-                    }
-                    $exportedFiles += $funcFileName
-                }
-            }
-
-            $message = "Results exported successfully!`n`nExported $($exportedFiles.Count) files:`n"
-            foreach ($file in $exportedFiles) {
-                $message += "`n- $(Split-Path -Path $file -Leaf)"
-            }
-            [System.Windows.Forms.MessageBox]::Show($message, "Export Complete", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
-        } catch {
-            [System.Windows.Forms.MessageBox]::Show("Failed to export CSV: $($_.Exception.Message)", "Export Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+        catch {
+            [System.Windows.Forms.MessageBox]::Show("Failed to send test alert: $($_.Exception.Message)", "Alert Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
         }
-    }
-})
-
-# Export HTML Button
-# Export HTML Button
-$exportHtmlBtn.Add_Click({
-    if (-not $script:auditResults) {
-        [System.Windows.Forms.MessageBox]::Show("No data to export. Please run an audit first.", "No Data", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
-        return
-    }
-
-    $saveDialog = New-Object System.Windows.Forms.SaveFileDialog
-    $saveDialog.Filter = "HTML files (*.html)|*.html"
-    $saveDialog.FileName = "DAT_Audit_Report_$(Get-Date -Format 'yyyyMMdd_HHmmss').html"
-    $saveDialog.Title = "Save Audit Report as HTML"
-
-    if ($saveDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
-        try {
-            # Try to load the function if not already loaded
-            if (-not (Get-Command -Name New-HTMLReport -ErrorAction SilentlyContinue)) {
-                $htmlPath = Join-Path -Path $script:ScriptRoot -ChildPath "Functions\New-HTMLReport.ps1"
-                if (Test-Path $htmlPath) {
-                    . $htmlPath
-                } else {
-                    throw "New-HTMLReport.ps1 not found at $htmlPath"
-                }
-            }
-
-            # Verify it loaded correctly
-            if (-not (Get-Command -Name New-HTMLReport -ErrorAction SilentlyContinue)) {
-                throw "Failed to load New-HTMLReport function."
-            }
-
-            $htmlData = @{}
-            foreach ($key in $script:auditResults.Keys) {
-                $htmlData[$key] = $script:auditResults[$key].Data
-            }
-
-            New-HTMLReport -OutputPath $saveDialog.FileName -AuditData $htmlData -CompanyName "DAT Advanced Tool"
-            
-            if (Test-Path $saveDialog.FileName) {
-                [System.Windows.Forms.MessageBox]::Show("HTML report generated successfully:`n$($saveDialog.FileName)", "Report Complete", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
-            } else {
-                throw "File was not created at $($saveDialog.FileName)"
-            }
-        } catch {
-            [System.Windows.Forms.MessageBox]::Show("Failed to generate HTML report: $($_.Exception.Message)", "Report Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
-        }
-    }
-})
-
-# Compliance Check Button
-$complianceBtn.Add_Click({
-    try {
-        if (-not (Get-Command -Name Test-Compliance -ErrorAction SilentlyContinue)) {
-            $compliancePath = Join-Path -Path $script:ScriptRoot -ChildPath "Functions\Test-Compliance.ps1"
-            if (Test-Path $compliancePath) {
-                . $compliancePath
-            } else {
-                throw "Test-Compliance.ps1 not found"
-            }
-        }
-
-        $saveDialog = New-Object System.Windows.Forms.SaveFileDialog
-        $saveDialog.Filter = "CSV files (*.csv)|*.csv"
-        $saveDialog.FileName = "DAT_Compliance_$(Get-Date -Format 'yyyyMMdd_HHmmss').csv"
-        $saveDialog.Title = "Save Compliance Report"
-
-        if ($saveDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
-            $complianceResults = Test-Compliance -Standards CIS,NIST -CsvPath $saveDialog.FileName
-            $summary = $complianceResults | Where-Object { $_.Standard -eq "SUMMARY" }
-            [System.Windows.Forms.MessageBox]::Show("Compliance Check Complete!`n`nCompliance Score: $($summary.CompliancePercentage)%`nPassed: $($summary.CurrentValue)`n`nReport saved to:`n$($saveDialog.FileName)", "Compliance Check", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
-        }
-    } catch {
-        [System.Windows.Forms.MessageBox]::Show("Failed to run compliance check: $($_.Exception.Message)", "Compliance Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
-    }
-})
-
-# Send Test Alert Button
-$sendAlertBtn.Add_Click({
-    try {
-        # Check if function exists
-        $sendAlertCmd = Get-Command -Name Send-Alert -ErrorAction SilentlyContinue
-        if (-not $sendAlertCmd) {
-            # Try to load it
-            $alertPath = Join-Path -Path $script:ScriptRoot -ChildPath "Functions\Send-Alert.ps1"
-            if (Test-Path $alertPath) {
-                . $alertPath
-                $sendAlertCmd = Get-Command -Name Send-Alert -ErrorAction SilentlyContinue
-            }
-            
-            if (-not $sendAlertCmd) {
-                throw "Send-Alert function could not be loaded. Path checked: $alertPath"
-            }
-        }
-
-        # Call the function
-        & $sendAlertCmd -Subject "DAT Test Alert" -Message "This is a test alert from DAT Advanced GUI" -Channels @("EventLog") -Severity Info
-        
-        [System.Windows.Forms.MessageBox]::Show("Test alert sent successfully!`n`nCheck Event Viewer > Application Log for the alert.", "Alert Sent", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
-    } catch {
-        $errorDetails = "Error: $($_.Exception.Message)`n`nScript Root: $script:ScriptRoot`n`nFunction Path: $(Join-Path -Path $script:ScriptRoot -ChildPath 'Functions\Send-Alert.ps1')"
-        [System.Windows.Forms.MessageBox]::Show($errorDetails, "Alert Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
-    }
-})
-
-# Save Thresholds Button
-$saveThresholdsBtn.Add_Click({
-    try {
-        if ($null -eq $script:config) {
-            $script:config = @{
-                thresholds = @{}
-            }
-        }
-
-        $script:config.thresholds.cpuUsageWarning = [int]$cpuWarnText.Text
-        $script:config.thresholds.cpuUsageCritical = [int]$cpuCritText.Text
-        $script:config.thresholds.memoryUsageWarning = [int]$memWarnText.Text
-        $script:config.thresholds.memoryUsageCritical = [int]$memCritText.Text
-
-        $configPath = "Config\DefaultConfig.json"
-        $script:config | ConvertTo-Json -Depth 10 | Out-File -FilePath $configPath -Encoding UTF8
-
-        [System.Windows.Forms.MessageBox]::Show("Thresholds saved successfully!", "Settings Saved", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
-    } catch {
-        [System.Windows.Forms.MessageBox]::Show("Failed to save thresholds: $($_.Exception.Message)", "Save Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
-    }
-})
-
-# Save Alert Settings Button
-$saveAlertBtn.Add_Click({
-    try {
-        if ($null -eq $script:config) {
-            $script:config = @{
-                alerting = @{
-                    email = @{}
-                    webhook = @{}
-                }
-            }
-        }
-
-        $script:config.alerting.enabled = $enableAlertingCheck.Checked
-        $script:config.alerting.email.smtpServer = $smtpText.Text
-        $script:config.alerting.email.to = $emailToText.Text -split ";"
-        $script:config.alerting.webhook.url = $webhookText.Text
-
-        $configPath = "Config\DefaultConfig.json"
-        $script:config | ConvertTo-Json -Depth 10 | Out-File -FilePath $configPath -Encoding UTF8
-
-        [System.Windows.Forms.MessageBox]::Show("Alert settings saved successfully!", "Settings Saved", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
-    } catch {
-        [System.Windows.Forms.MessageBox]::Show("Failed to save alert settings: $($_.Exception.Message)", "Save Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
-    }
-})
-
-# Test Alert Button (Settings Tab)
-$testAlertBtn.Add_Click({
-    try {
-        if (-not (Get-Command -Name Send-Alert -ErrorAction SilentlyContinue)) {
-            $alertPath = Join-Path -Path $script:ScriptRoot -ChildPath "Functions\Send-Alert.ps1"
-            if (Test-Path $alertPath) {
-                . $alertPath
-            } else {
-                throw "Send-Alert.ps1 not found"
-            }
-        }
-
-        $channels = @("EventLog")
-        if ($enableAlertingCheck.Checked -and $smtpText.Text) {
-            $channels += "Email"
-        }
-        if ($webhookText.Text -and $webhookText.Text -ne "https://hooks.slack.com/services/...") {
-            $channels += "Webhook"
-        }
-
-        Send-Alert -Subject "DAT Test Alert" -Message "Testing alert configuration from Settings tab" -Channels $channels -Severity Info -Config $script:config
-        [System.Windows.Forms.MessageBox]::Show("Test alert sent!`n`nChannels: $($channels -join ', ')", "Alert Test", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
-    } catch {
-        [System.Windows.Forms.MessageBox]::Show("Failed to send test alert: $($_.Exception.Message)", "Alert Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
-    }
-})
+    })
 
 # Create Schedule Button
 $createScheduleBtn.Add_Click({
-    try {
-        if (-not (Get-Command -Name New-ScheduledAudit -ErrorAction SilentlyContinue)) {
-            . "$PSScriptRoot\Functions\New-ScheduledAudit.ps1"
-        }
-
-        $taskName = $taskNameText.Text
-        $frequency = $freqCombo.SelectedItem
-        $time = $timeText.Text
-
-        $enabledChecks = @()
-        foreach ($i in 0..($checkboxes.Count - 1)) {
-            if ($checkboxes[$i].Checked) {
-                $enabledChecks += $functions[$i]
+        try {
+            if (-not (Get-Command -Name New-ScheduledAudit -ErrorAction SilentlyContinue)) {
+                . "$PSScriptRoot\Functions\New-ScheduledAudit.ps1"
             }
+
+            $taskName = $taskNameText.Text
+            $frequency = $freqCombo.SelectedItem
+            $time = $timeText.Text
+
+            $enabledChecks = @()
+            foreach ($i in 0..($checkboxes.Count - 1)) {
+                if ($checkboxes[$i].Checked) {
+                    $enabledChecks += $functions[$i]
+                }
+            }
+
+            if ($enabledChecks.Count -eq 0) {
+                [System.Windows.Forms.MessageBox]::Show("Please select at least one audit function for the scheduled task.", "No Functions Selected", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
+                return
+            }
+
+            New-ScheduledAudit -TaskName $taskName -Frequency $frequency -Time $time -EnabledChecks $enabledChecks -Force
+
+            [System.Windows.Forms.MessageBox]::Show("Scheduled task created successfully!`n`nTask Name: $taskName`nFrequency: $frequency`nTime: $time`nFunctions: $($enabledChecks.Count)", "Schedule Created", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
         }
-
-        if ($enabledChecks.Count -eq 0) {
-            [System.Windows.Forms.MessageBox]::Show("Please select at least one audit function for the scheduled task.", "No Functions Selected", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
-            return
+        catch {
+            [System.Windows.Forms.MessageBox]::Show("Failed to create scheduled task: $($_.Exception.Message)", "Schedule Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
         }
-
-        New-ScheduledAudit -TaskName $taskName -Frequency $frequency -Time $time -EnabledChecks $enabledChecks -Force
-
-        [System.Windows.Forms.MessageBox]::Show("Scheduled task created successfully!`n`nTask Name: $taskName`nFrequency: $frequency`nTime: $time`nFunctions: $($enabledChecks.Count)", "Schedule Created", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
-    } catch {
-        [System.Windows.Forms.MessageBox]::Show("Failed to create scheduled task: $($_.Exception.Message)", "Schedule Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
-    }
-})
+    })
 
 # View Scheduled Tasks Button
 $viewSchedulesBtn.Add_Click({
-    try {
-        if (-not (Get-Command -Name Get-ScheduledAudits -ErrorAction SilentlyContinue)) {
-            . "$PSScriptRoot\Functions\New-ScheduledAudit.ps1"
-        }
-
-        $tasks = Get-ScheduledAudits
-        if ($tasks) {
-            $message = "Scheduled DAT Tasks:`n`n"
-            foreach ($task in $tasks) {
-                $message += "- $($task.TaskName) - $($task.State) - Next: $($task.NextRunTime)`n"
+        try {
+            if (-not (Get-Command -Name Get-ScheduledAudits -ErrorAction SilentlyContinue)) {
+                . "$PSScriptRoot\Functions\New-ScheduledAudit.ps1"
             }
-            [System.Windows.Forms.MessageBox]::Show($message, "Scheduled Tasks", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
-        } else {
-            [System.Windows.Forms.MessageBox]::Show("No scheduled DAT tasks found.", "No Tasks", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+
+            $tasks = Get-ScheduledAudits
+            if ($tasks) {
+                $message = "Scheduled DAT Tasks:`n`n"
+                foreach ($task in $tasks) {
+                    $message += "- $($task.TaskName) - $($task.State) - Next: $($task.NextRunTime)`n"
+                }
+                [System.Windows.Forms.MessageBox]::Show($message, "Scheduled Tasks", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+            }
+            else {
+                [System.Windows.Forms.MessageBox]::Show("No scheduled DAT tasks found.", "No Tasks", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+            }
         }
-    } catch {
-        [System.Windows.Forms.MessageBox]::Show("Failed to retrieve scheduled tasks: $($_.Exception.Message)", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
-    }
-})
+        catch {
+            [System.Windows.Forms.MessageBox]::Show("Failed to retrieve scheduled tasks: $($_.Exception.Message)", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+        }
+    })
 
 # Refresh Plugins Button
 $refreshPluginsBtn.Add_Click({
-    try {
-        if (-not (Get-Command -Name Get-AvailablePlugins -ErrorAction SilentlyContinue)) {
-            . "$PSScriptRoot\Functions\Invoke-Plugin.ps1"
-        }
+        try {
+            if (-not (Get-Command -Name Get-AvailablePlugins -ErrorAction SilentlyContinue)) {
+                . "$PSScriptRoot\Functions\Invoke-Plugin.ps1"
+            }
 
-        $pluginsListBox.Items.Clear()
-        $plugins = Get-AvailablePlugins
-        foreach ($plugin in $plugins) {
-            $pluginsListBox.Items.Add("$($plugin.Name) - $($plugin.Description)")
+            $pluginsListBox.Items.Clear()
+            $plugins = Get-AvailablePlugins
+            foreach ($plugin in $plugins) {
+                $pluginsListBox.Items.Add("$($plugin.Name) - $($plugin.Description)")
+            }
+            $script:availablePlugins = $plugins
         }
-        $script:availablePlugins = $plugins
-    } catch {
-        [System.Windows.Forms.MessageBox]::Show("Failed to load plugins: $($_.Exception.Message)", "Plugin Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
-    }
-})
+        catch {
+            [System.Windows.Forms.MessageBox]::Show("Failed to load plugins: $($_.Exception.Message)", "Plugin Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+        }
+    })
 
 # Run Plugin Button
 $runPluginBtn.Add_Click({
-    if ($pluginsListBox.SelectedIndex -eq -1) {
-        [System.Windows.Forms.MessageBox]::Show("Please select a plugin to run.", "No Plugin Selected", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
-        return
-    }
-
-    try {
-        if (-not (Get-Command -Name Invoke-Plugin -ErrorAction SilentlyContinue)) {
-            . "$PSScriptRoot\Functions\Invoke-Plugin.ps1"
+        if ($pluginsListBox.SelectedIndex -eq -1) {
+            [System.Windows.Forms.MessageBox]::Show("Please select a plugin to run.", "No Plugin Selected", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
+            return
         }
 
-        $selectedPlugin = $script:availablePlugins[$pluginsListBox.SelectedIndex]
-        $pluginOutput = Invoke-Plugin -PluginName $selectedPlugin.Name -Parameters @{}
-        $pluginOutputBox.Text = $pluginOutput | Out-String
-        [System.Windows.Forms.MessageBox]::Show("Plugin executed successfully!", "Plugin Complete", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
-    } catch {
-        [System.Windows.Forms.MessageBox]::Show("Failed to run plugin: $($_.Exception.Message)", "Plugin Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
-    }
-})
+        try {
+            if (-not (Get-Command -Name Invoke-Plugin -ErrorAction SilentlyContinue)) {
+                . "$PSScriptRoot\Functions\Invoke-Plugin.ps1"
+            }
+
+            $selectedPlugin = $script:availablePlugins[$pluginsListBox.SelectedIndex]
+            $pluginOutput = Invoke-Plugin -PluginName $selectedPlugin.Name -Parameters @{}
+            $pluginOutputBox.Text = $pluginOutput | Out-String
+            [System.Windows.Forms.MessageBox]::Show("Plugin executed successfully!", "Plugin Complete", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+        }
+        catch {
+            [System.Windows.Forms.MessageBox]::Show("Failed to run plugin: $($_.Exception.Message)", "Plugin Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+        }
+    })
 
 # Create New Plugin Button
 $createPluginBtn.Add_Click({
-    try {
-        if (-not (Get-Command -Name New-PluginTemplate -ErrorAction SilentlyContinue)) {
-            . "$PSScriptRoot\Functions\Invoke-Plugin.ps1"
-        }
+        try {
+            if (-not (Get-Command -Name New-PluginTemplate -ErrorAction SilentlyContinue)) {
+                . "$PSScriptRoot\Functions\Invoke-Plugin.ps1"
+            }
 
-        $pluginName = [Microsoft.VisualBasic.Interaction]::InputBox("Enter plugin name:", "Create Plugin", "MyCustomPlugin")
-        if ($pluginName) {
-            New-PluginTemplate -PluginName $pluginName -Description "Custom plugin created from GUI"
-            [System.Windows.Forms.MessageBox]::Show("Plugin template created!`n`nEdit Plugins\$pluginName.ps1 to implement your custom logic.", "Plugin Created", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
-            $refreshPluginsBtn.PerformClick()
+            $pluginName = [Microsoft.VisualBasic.Interaction]::InputBox("Enter plugin name:", "Create Plugin", "MyCustomPlugin")
+            if ($pluginName) {
+                New-PluginTemplate -PluginName $pluginName -Description "Custom plugin created from GUI"
+                [System.Windows.Forms.MessageBox]::Show("Plugin template created!`n`nEdit Plugins\$pluginName.ps1 to implement your custom logic.", "Plugin Created", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+                $refreshPluginsBtn.PerformClick()
+            }
         }
-    } catch {
-        [System.Windows.Forms.MessageBox]::Show("Failed to create plugin: $($_.Exception.Message)", "Plugin Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
-    }
-})
+        catch {
+            [System.Windows.Forms.MessageBox]::Show("Failed to create plugin: $($_.Exception.Message)", "Plugin Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+        }
+    })
 
 # Initialize plugins list on startup
 $refreshPluginsBtn.PerformClick()
 
 # Show the form
-$form.Add_Shown({$form.Activate()})
+$form.Add_Shown({ $form.Activate() })
 [void]$form.ShowDialog()
