@@ -725,6 +725,12 @@ $runAuditBtn.Add_Click({
                     $alertMessage += "   - Memory: $($metrics.MemoryUsagePercent)%`n"
                 }
 
+                if ($func -eq "SystemUptime" -and $status -eq "Success") {
+                    $uptime = $res.Data
+                    $alertMessage += "   - Uptime: $($uptime.Days) days, $($uptime.Hours) hours, $($uptime.Minutes) minutes`n"
+                    $alertMessage += "   - Last Boot: $($uptime.LastBootTime)`n"
+                }
+
                 if ($func -eq "RunningProcesses" -and $status -eq "Success") {
                     $processes = $res.Data
                     if ($processes) {
