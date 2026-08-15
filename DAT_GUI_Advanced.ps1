@@ -1218,8 +1218,11 @@ function Complete-AuditRun {
         $script:auditResults = $auditResults
         $script:allData = $allData
 
-        # Send Webhook Alert if enabled
-        if ($script:config -and $script:config.alerting.enabled -and $script:config.alerting.webhook.url) {
+        # Send alerts (webhook and/or email) when alerting is enabled and configured.
+        # Email counts as "configured" only once a credential has been saved.
+        $webhookConfigured = $script:config -and $script:config.alerting.webhook -and $script:config.alerting.webhook.url
+        $emailConfigured = $script:config -and $script:config.alerting.email -and $script:config.alerting.email.smtpServer -and (Test-Path $script:credentialPath)
+        if ($script:config -and $script:config.alerting.enabled -and ($webhookConfigured -or $emailConfigured)) {
             try {
                 # Ensure Send-Alert is loaded
                 if (-not (Get-Command -Name Send-Alert -ErrorAction SilentlyContinue)) {
@@ -1300,11 +1303,35 @@ function Complete-AuditRun {
                     $alertMessage += "`n[See attached file for detailed results]"
                 }
 
-                Send-Alert -Subject "DAT Audit Summary" -Message $alertMessage -Channels "Webhook" -Severity "Info" -Config $script:config -Attachments $attachments
+                # Send each channel independently so one failing (e.g. a bad
+                # SMTP credential) never blocks the other from going out.
+                $sent = @()
+                $failed = @()
+                if ($webhookConfigured) {
+                    try {
+                        Send-Alert -Subject "DAT Audit Summary" -Message $alertMessage -Channels "Webhook" -Severity "Info" -Config $script:config -Attachments $attachments
+                        $sent += "Discord"
+                    }
+                    catch { $failed += "webhook - $($_.Exception.Message)" }
+                }
+                if ($emailConfigured) {
+                    try {
+                        Send-Alert -Subject "DAT Audit Summary" -Message $alertMessage -Channels "Email" -Severity "Info" -Config $script:config -Attachments $attachments
+                        $sent += "Email"
+                    }
+                    catch { $failed += "email - $($_.Exception.Message)" }
+                }
 
                 # Cleanup attachments
                 foreach ($file in $attachments) {
                     if (Test-Path $file) { Remove-Item $file -ErrorAction SilentlyContinue }
+                }
+
+                if ($failed.Count -gt 0) {
+                    $statusLabel.Text = "Audit completed. Sent: $($sent -join ', '). Failed: $($failed -join '; ')"
+                }
+                elseif ($sent.Count -gt 0) {
+                    $statusLabel.Text = "Audit completed! Alerts sent: $($sent -join ', ')."
                 }
             }
             catch {
