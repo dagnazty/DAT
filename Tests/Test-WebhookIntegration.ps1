@@ -2,8 +2,8 @@
 # This script simulates the environment within the GUI button click handler
 
 # Load necessary functions
-. "$PSScriptRoot\Functions\Send-Alert.ps1"
-. "$PSScriptRoot\Functions\Get-PerformanceMetrics.ps1"
+. "$PSScriptRoot\..\Functions\Send-Alert.ps1"
+. "$PSScriptRoot\..\Functions\Get-PerformanceMetrics.ps1"
 
 # Mock Config
 $script:config = @{

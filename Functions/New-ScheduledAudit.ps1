@@ -13,6 +13,8 @@ function New-ScheduledAudit {
         [Parameter(Mandatory)]
         [string[]]$EnabledChecks,
 
+        [switch]$EnableEmailAlerts,
+
         [switch]$Force
     )
 
@@ -53,6 +55,9 @@ function New-ScheduledAudit {
     # Construct arguments string
     $checksString = $EnabledChecks -join "','"
     $arguments = "-ExecutionPolicy Bypass -File `"$scriptPath`" -TaskName `"$TaskName`" -EnabledChecks @('$checksString')"
+    if ($EnableEmailAlerts) {
+        $arguments += " -EnableEmailAlerts"
+    }
     
     $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument $arguments
 

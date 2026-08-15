@@ -1,1 +1,4 @@
 /ref
+
+# Saved SMTP credential (DPAPI-encrypted, machine/user-specific - never commit)
+Config/smtp.cred.xml

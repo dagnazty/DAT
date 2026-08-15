@@ -1,17 +1,22 @@
 ﻿{
+    "alerting":  {
+                     "email":  {
+                                   "port":  587,
+                                   "smtpServer":  "smtp.mail.me.com",
+                                   "to":  [
+                                              "dagnazty@icloud.com"
+                                          ],
+                                   "from":  "",
+                                   "username":  "dagnazty@icloud.com",
+                                   "credentialPath":  "C:\\Users\\daggy\\Documents\\GitHub\\DAT\\Config\\smtp.cred.xml",
+                                   "useSSL":  true
+                               },
+                     "webhook":  {
+                                     "url":  "https://discord.com/api/webhooks/1388636193406582784/QGG4QS6eNuisLsopQx5AO3ivaGqnEv_TV-2ezKfXPrFDlsctSaR6WVuvV6LRKBCyVKVQ"
+                                 },
+                     "enabled":  true
+                 },
     "ui":  {
                "theme":  "dark"
-           },
-    "alerting":  {
-                     "webhook":  {
-                                     "url":  ""
-                                 },
-                     "email":  {
-                                   "smtpServer":  "smtp.company.com",
-                                   "to":  [
-                                              "admin@company.com"
-                                          ]
-                               },
-                     "enabled":  true
-                 }
+           }
 }

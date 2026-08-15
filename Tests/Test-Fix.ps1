@@ -2,7 +2,7 @@
 $ErrorActionPreference = "Continue"
 
 Write-Host "1. Loading Configuration..."
-. "$PSScriptRoot\Functions\Get-Configuration.ps1"
+. "$PSScriptRoot\..\Functions\Get-Configuration.ps1"
 $config = Get-Configuration
 
 if ($config) {
@@ -13,7 +13,7 @@ if ($config) {
 }
 
 Write-Host "`n2. Testing Send-Alert (Webhook)..."
-. "$PSScriptRoot\Functions\Send-Alert.ps1"
+. "$PSScriptRoot\..\Functions\Send-Alert.ps1"
 
 try {
     Send-Alert -Subject "DAT Fix Verification" -Message "Testing webhook fix and event log handling." -Channels "Webhook" -Severity "Info" -Config $config

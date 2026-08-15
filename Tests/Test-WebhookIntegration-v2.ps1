@@ -1,7 +1,7 @@
 # Test script for Webhook Content Update Verification
 
 # Load necessary functions
-. "$PSScriptRoot\Functions\Send-Alert.ps1"
+. "$PSScriptRoot\..\Functions\Send-Alert.ps1"
 
 # Mock Config
 $script:config = @{

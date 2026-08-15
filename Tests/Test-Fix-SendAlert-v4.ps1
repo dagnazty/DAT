@@ -1,7 +1,7 @@
 # Test script for Emoji Removal Verification
 
 # Load the function
-. "$PSScriptRoot\Functions\Send-Alert.ps1"
+. "$PSScriptRoot\..\Functions\Send-Alert.ps1"
 
 # Mock Config
 $mockConfig = @{

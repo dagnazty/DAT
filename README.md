@@ -1,6 +1,12 @@
+<p align="center">
+  <img src="Assets/dat_logo.webp" alt="DAT skull logo" width="260">
+</p>
+
 # DAT - Desktop Audit Tool
 
 **dag's Audit Tool** is a comprehensive PowerShell-based security and compliance auditing platform for Windows environments. It provides both an advanced GUI and command-line interface for in-depth system analysis, compliance checking, and automated monitoring.
+
+The GUI is built around the DAT skull mark with two monochrome themes: **Reaper** (dark, default) and **Bone** (light). Blood red is reserved for destructive and critical actions.
 
 ---
 
@@ -12,20 +18,22 @@
 ```
 
 ### **Launch Interactive CLI**
-```cmd
-.\Launch_DAT.bat
+```powershell
+.\dat_main.ps1
 ```
 
 ### **Run Tests**
 ```powershell
-.\Test_Advanced_Features.ps1
+.\Tests\Test_Advanced_Features.ps1
 ```
 
 ---
 
 ## ✨ **Key Features**
 
-### **Core Audit Functions (14)**
+### **Core Audit Functions (27, organized in 5 categories)**
+
+Checks are grouped in the GUI as **System Health**, **Inventory**, **Security Posture**, **Threat Hunting**, and **Accounts & Access**.
 - ✅ **System Uptime** - Boot time and uptime tracking
 - ✅ **Running Processes** - Active process monitoring
 - ✅ **Performance Metrics** - CPU, Memory, Disk usage
@@ -40,6 +48,19 @@
 - ✅ **User Groups** - User and group memberships
 - ✅ **Registry Scan** - Suspicious registry entry detection
 - ✅ **Disk Health** - HDD/SSD health check
+- ✅ **Firewall Status** - Per-profile firewall state and defaults
+- ✅ **BitLocker Status** - Volume encryption and key protectors
+- ✅ **Installed Software** - Full software inventory from the registry
+- ✅ **Pending Reboot** - CBS / Windows Update / file-rename reboot flags
+- ✅ **Autoruns** - Run keys, startup folders, non-Microsoft scheduled tasks
+- ✅ **Services Audit** - Unquoted paths, non-standard accounts, stopped auto-start services
+- ✅ **Defender Health** - Real-time protection, tamper protection, signature age, scan times
+- ✅ **Insecure Protocols** - SMBv1, RDP/NLA, legacy TLS, LLMNR
+- ✅ **Certificate Expiry** - Expired and expiring machine certificates
+- ✅ **Failed Logons** - Event 4625 aggregation with brute-force flagging
+- ✅ **USB History** - Historical USB storage devices
+- ✅ **Privileged Accounts** - Local admins, non-expiring passwords, stale accounts
+- ✅ **Shares Audit** - SMB shares with Everyone access flagged
 
 ### **Advanced Features**
 - 🎨 **Advanced GUI** - 4-tab interface with all features
@@ -302,15 +323,19 @@ New-HTMLReport -OutputPath "report.html" -AuditData $auditResults -CompanyName "
 ## 📁 **File Structure**
 
 ```
-D:\Scripts\DAT\
-├── DAT_GUI_Advanced.ps1          # Advanced GUI
+DAT\
+├── DAT_GUI_Advanced.ps1          # Advanced GUI (skull-branded, Reaper/Bone themes)
 ├── Launch_DAT_GUI_Advanced.bat   # GUI launcher
 ├── dat_main.ps1                  # Interactive CLI
-├── Launch_DAT.bat                # CLI launcher
+├── Run-ScheduledAudit.ps1        # Entry point used by scheduled tasks
+├── Assets\
+│   ├── dat_logo.webp             # Original skull mark
+│   ├── dat_logo.png              # PNG version (light backgrounds)
+│   └── dat_logo_dark.png         # White-on-transparent (GUI header / icon)
 ├── Config\
 │   └── DefaultConfig.json        # Configuration
 ├── Functions\
-│   ├── Get-*.ps1                 # 14 audit functions
+│   ├── Get-*.ps1                 # 27 audit functions
 │   ├── Test-Compliance.ps1       # Compliance checks
 │   ├── Send-Alert.ps1            # Multi-channel alerts
 │   ├── New-ScheduledAudit.ps1    # Task scheduling
@@ -320,8 +345,13 @@ D:\Scripts\DAT\
 │   └── New-HTMLReport.ps1        # HTML reports
 ├── Plugins\
 │   └── Custom-SecurityScan.ps1   # Sample plugin
-├── History\                      # Historical data
-└── Examples.ps1                  # Usage examples
+├── Examples\
+│   ├── Examples.ps1              # Usage examples (run from repo root)
+│   └── Demo-DAT-Features.ps1     # Feature demo (run from repo root)
+├── Tests\                        # Test & debug scripts
+└── Legacy\
+    ├── DAT_GUI.ps1               # Old basic GUI
+    └── Launch_DAT_GUI.bat        # Old GUI launcher
 ```
 
 ---
@@ -360,11 +390,10 @@ D:\Scripts\DAT\
 
 ## 📚 **Documentation**
 
-- **`DISCORD_WEBHOOK_SETUP.md`** - Discord integration guide
-- **`Examples.ps1`** - Code examples
-- **`Test_Advanced_Features.ps1`** - Feature testing
-- **`Test-SendAlert.ps1`** - Alert system test
-- **`Test-DiscordWebhook.ps1`** - Discord webhook test
+- **`Examples\Examples.ps1`** - Code examples
+- **`Tests\Test_Advanced_Features.ps1`** - Feature testing
+- **`Tests\Test-SendAlert.ps1`** - Alert system test
+- **`Tests\Test-DiscordWebhook.ps1`** - Discord webhook test
 
 ---
 
@@ -396,7 +425,7 @@ Enable-PSRemoting -Force
 
 | Feature | GUI | CLI | Status |
 |---------|-----|-----|--------|
-| 14 Audit Functions | ✅ | ✅ | Complete |
+| 27 Audit Functions | ✅ | ✅ | Complete |
 | CSV Export | ✅ | ✅ | Complete |
 | HTML Reports | ✅ | ✅ | Complete |
 | Compliance Checks | ✅ | ✅ | Complete |

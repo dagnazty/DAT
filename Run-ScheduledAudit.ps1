@@ -45,6 +45,19 @@ $functionMap = @{
     "UserGroups" = "Get-UserGroupMemberships"
     "RegistryScan" = "Scan-SuspiciousRegistryEntries"
     "DiskHealth" = "Get-DiskHealth"
+    "FirewallStatus" = "Get-FirewallStatus"
+    "BitLockerStatus" = "Get-BitLockerStatus"
+    "InstalledSoftware" = "Get-InstalledSoftware"
+    "PendingReboot" = "Get-PendingReboot"
+    "Autoruns" = "Get-AutorunEntries"
+    "ServicesAudit" = "Get-ServicesAudit"
+    "DefenderHealth" = "Get-DefenderHealth"
+    "InsecureProtocols" = "Get-InsecureProtocols"
+    "CertificateExpiry" = "Get-CertificateExpiry"
+    "FailedLogons" = "Get-FailedLogons"
+    "USBHistory" = "Get-USBHistory"
+    "PrivilegedAccounts" = "Get-PrivilegedAccounts"
+    "SharesAudit" = "Get-SharesAudit"
 }
 
 # Load required functions
@@ -115,6 +128,58 @@ foreach ($check in $EnabledChecks) {
                     $alertTriggered = $true
                 }
             }
+            "FirewallStatus" {
+                $disabledProfiles = @($result | Where-Object { $_.Status -eq "DISABLED" })
+                if ($disabledProfiles.Count -gt 0) {
+                    $profileNames = ($disabledProfiles | ForEach-Object { $_.Profile }) -join ", "
+                    $alertsTriggered += @{
+                        Severity = "Critical"
+                        Subject = "Windows Firewall Profile Disabled"
+                        Message = "Firewall disabled for profile(s): $profileNames on $($env:COMPUTERNAME)"
+                    }
+                    $alertTriggered = $true
+                }
+            }
+            "DefenderHealth" {
+                if ($result.RealTimeProtectionEnabled -eq $false) {
+                    $alertsTriggered += @{
+                        Severity = "Critical"
+                        Subject = "Defender Real-time Protection Disabled"
+                        Message = "Windows Defender real-time protection is disabled on $($env:COMPUTERNAME)"
+                    }
+                    $alertTriggered = $true
+                }
+                elseif ($result.SignatureAgeDays -gt 7) {
+                    $alertsTriggered += @{
+                        Severity = "Warning"
+                        Subject = "Defender Signatures Outdated"
+                        Message = "Defender signatures are $($result.SignatureAgeDays) days old on $($env:COMPUTERNAME)"
+                    }
+                    $alertTriggered = $true
+                }
+            }
+            "FailedLogons" {
+                $bruteForce = @($result | Where-Object { $_.Status -eq "POSSIBLE BRUTE FORCE" })
+                if ($bruteForce.Count -gt 0) {
+                    $accounts = ($bruteForce | ForEach-Object { "$($_.Account) ($($_.FailedCount)x from $($_.SourceIP))" }) -join ", "
+                    $alertsTriggered += @{
+                        Severity = "Critical"
+                        Subject = "Possible Brute Force Attack"
+                        Message = "High failed-logon counts on $($env:COMPUTERNAME): $accounts"
+                    }
+                    $alertTriggered = $true
+                }
+            }
+            "PendingReboot" {
+                if ($result.RebootPending) {
+                    $alertsTriggered += @{
+                        Severity = "Warning"
+                        Subject = "Reboot Pending"
+                        Message = "$($env:COMPUTERNAME) has a pending reboot (CBS: $($result.ComponentServicing), WU: $($result.WindowsUpdate), FileRename: $($result.PendingFileRename))"
+                    }
+                    $alertTriggered = $true
+                }
+            }
             "EventLogSummary" {
                 $errorThreshold = if ($config) { $config.thresholds.eventLogErrorsMax } else { 10 }
                 $totalErrors = ($result.SystemLogs | Where-Object { $_.EntryType -eq "Error" }).Count +
@@ -132,7 +197,7 @@ foreach ($check in $EnabledChecks) {
         }
 
         if (-not $alertTriggered) {
-            Write-Host "✓ $check completed successfully"
+            Write-Host "[OK] $check completed successfully"
         }
 
     } catch {

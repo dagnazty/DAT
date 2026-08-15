@@ -1,7 +1,7 @@
-# Test script for File Attachment Verification
+# Test script for File Attachment Verification (Retry)
 
 # Load necessary functions
-. "$PSScriptRoot\Functions\Send-Alert.ps1"
+. "$PSScriptRoot\..\Functions\Send-Alert.ps1"
 
 # Mock Config
 $script:config = @{
@@ -15,13 +15,13 @@ $script:config = @{
 }
 
 # Create dummy attachment
-$attachmentPath = "$env:TEMP\Test_Attachment.txt"
+$attachmentPath = "$env:TEMP\Test_Attachment_Retry.txt"
 "This is a test attachment content.`nGenerated at $(Get-Date)" | Set-Content -Path $attachmentPath
 
-Write-Host "Testing Webhook Alert with Attachment..."
+Write-Host "Testing Webhook Alert with Attachment (Retry)..."
 
 try {
-    Send-Alert -Subject "Test Attachment" -Message "Sending a file..." -Channels "Webhook" -Severity "Info" -Config $script:config -Attachments @($attachmentPath)
+    Send-Alert -Subject "Test Attachment Retry" -Message "Sending a file..." -Channels "Webhook" -Severity "Info" -Config $script:config -Attachments @($attachmentPath)
 } catch {
     Write-Host "Caught expected error (due to fake URL): $_"
 } finally {
